@@ -203,8 +203,8 @@ async def store_shot_data(
                 tags=all_tags,
                 usage_situations=generate_usage_situations(shot_data, request.scene_context)
             )
-            
-            db.add(video_shot)
+
+            await video_shot.insert()
             stored_shots.append({
                 "shot_id": video_shot.id,
                 "start_timestamp": video_shot.start_timestamp,
@@ -237,21 +237,26 @@ async def suggest_shots(
     start_time = time.time()
     
     try:
-        # Build query filters
-        query = select(VideoShot)
-        
+        # Build query filters using Beanie ODM
+        query_filters = {}
+
         # Filter by emotional tone if specified
         if request.emotional_tone:
-            query = query.where(VideoShot.emotional_tone == request.emotional_tone)
-        
-        # Filter by tags if specified
+            query_filters["emotional_tone"] = request.emotional_tone
+
+        # Execute query with filters
+        if query_filters:
+            shots = await VideoShot.find(query_filters).limit(request.limit * 2).to_list()
+        else:
+            shots = await VideoShot.find().limit(request.limit * 2).to_list()
+
+        # Additional filtering for tags (since Beanie doesn't support array contains in find)
         if request.desired_tags:
-            for tag in request.desired_tags:
-                query = query.where(VideoShot.tags.contains([tag]))
-        
-        # Execute query
-        result = await db.execute(query.limit(request.limit * 2))  # Get more for ranking
-        shots = result.scalars().all()
+            filtered_shots = []
+            for shot in shots:
+                if shot.tags and any(tag in shot.tags for tag in request.desired_tags):
+                    filtered_shots.append(shot)
+            shots = filtered_shots
         
         if not shots:
             return {
@@ -316,30 +321,35 @@ async def get_shot_library(
     start_time = time.time()
     
     try:
-        # Build query with filters
-        query = select(VideoShot)
-        
+        # Build query filters using Beanie ODM
+        query_filters = {}
+
         if movement_type:
-            query = query.where(VideoShot.camera_movement == movement_type)
-        
+            query_filters["camera_movement"] = movement_type
+
         if emotional_tone:
-            query = query.where(VideoShot.emotional_tone == emotional_tone)
-        
+            query_filters["emotional_tone"] = emotional_tone
+
+        # Get all matching shots first for count and tag filtering
+        if query_filters:
+            all_shots = await VideoShot.find(query_filters).to_list()
+        else:
+            all_shots = await VideoShot.find().to_list()
+
+        # Filter by tags if specified
         if tags:
             tag_list = [t.strip() for t in tags.split(",")]
-            for tag in tag_list:
-                query = query.where(VideoShot.tags.contains([tag]))
-        
-        # Get total count
-        count_result = await db.execute(query)
-        total_shots = len(count_result.scalars().all())
-        
+            filtered_shots = []
+            for shot in all_shots:
+                if shot.tags and any(tag in shot.tags for tag in tag_list):
+                    filtered_shots.append(shot)
+            all_shots = filtered_shots
+
+        total_shots = len(all_shots)
+
         # Apply pagination
         offset = (page - 1) * page_size
-        query = query.offset(offset).limit(page_size)
-        
-        result = await db.execute(query)
-        shots = result.scalars().all()
+        shots = all_shots[offset:offset + page_size]
         
         # Format results
         shot_library = []

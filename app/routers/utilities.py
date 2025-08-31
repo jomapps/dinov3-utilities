@@ -12,9 +12,7 @@ from app.core.config import settings
 router = APIRouter()
 
 @router.get("/health")
-async def health_check(
-    dinov3_service: DINOv3Service = Depends()
-) -> Dict[str, Any]:
+async def health_check() -> Dict[str, Any]:
     """Service health check and model status."""
     start_time = time.time()
     
@@ -38,16 +36,19 @@ async def health_check(
         else:
             gpu_info = {"available": False}
         
+        # Import the global dinov3_service from main
+        from app.main import dinov3_service
+
         # Model status
         model_status = {
-            "loaded": dinov3_service.model is not None,
-            "device": str(dinov3_service.device) if dinov3_service.device else None,
+            "loaded": dinov3_service is not None and dinov3_service.model is not None,
+            "device": str(dinov3_service.device) if dinov3_service and dinov3_service.device else None,
             "model_name": settings.DINOV3_MODEL_NAME
         }
-        
+
         # Redis status
         redis_status = {"connected": False}
-        if dinov3_service.redis:
+        if dinov3_service and dinov3_service.redis:
             try:
                 await dinov3_service.redis.ping()
                 redis_status = {"connected": True}
@@ -79,12 +80,13 @@ async def health_check(
         }
 
 @router.get("/model-info")
-async def get_model_info(
-    dinov3_service: DINOv3Service = Depends()
-) -> Dict[str, Any]:
+async def get_model_info() -> Dict[str, Any]:
     """Get information about loaded DINOv3 model."""
     try:
-        if not dinov3_service.model:
+        # Import the global dinov3_service from main
+        from app.main import dinov3_service
+
+        if not dinov3_service or not dinov3_service.model:
             raise HTTPException(status_code=503, detail="Model not loaded")
         
         # Model configuration
