@@ -1,0 +1,9 @@
+# No Docker services needed - using existing infrastructure on dev server
+# 
+# Infrastructure already available:
+# - MongoDB: localhost:27017 (already installed)
+# - Redis: localhost:6379 (already installed) 
+# - Cloudflare R2: Using real credentials for object storage
+# - PathRAG: localhost:5000 (provides ArangoDB access)
+#
+# This file is kept for reference but not used in development

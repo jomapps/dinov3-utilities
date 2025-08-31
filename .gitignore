@@ -1,0 +1,190 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Model Files (Large Files)
+models/*/model.safetensors
+models/*/pytorch_model.bin
+models/*/*.pth
+models/*/*.pt
+*.safetensors
+*.bin
+
+# Keep model config files but ignore weights
+!models/*/config.json
+!models/*/preprocessor_config.json
+!models/*/tokenizer.json
+!models/*/tokenizer_config.json
+!models/*/README.md
+
+# Cache
+.cache/
+*.cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Media files (if storing locally)
+uploads/
+media/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp4
+*.avi
+*.mov
+*.webm
+*.pdf
+
+# Keep test images
+!test_image.jpg
+!test_*.jpg
+!test_*.png
+!sample_*.jpg
+!sample_*.png
+
+# Docker
+.dockerignore
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# FastAPI
+.pytest_cache/
+
+# Redis
+dump.rdb
+
+# PostgreSQL
+*.sql
+
+# MinIO/S3
+.minio/
+
+# Hugging Face
+.huggingface/
+
+# PyTorch Hub
+.torch/
+
+# Weights & Biases
+wandb/
+
+# MLflow
+mlruns/
+
+# Node.js (if any frontend components)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Compressed files
+*.zip
+*.tar.gz
+*.rar
+
+# Documentation builds
+docs/_build/
+site/
+
+# Local development
+local_*
+dev_*
+debug_*
+
+# API Keys and Secrets
+secrets/
+keys/
+*.key
+*.pem
+*.crt
+
+# Test outputs
+test_outputs/
+test_results/
+screenshots/
+
+# Performance profiling
+*.prof
+*.profile
+
+# Memory dumps
+*.dump
+*.dmp
+
+# Large model files
+models/*
+only-for-reference-dino-code/*

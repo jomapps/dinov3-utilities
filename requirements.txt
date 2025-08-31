@@ -1,0 +1,55 @@
+# Core FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database - MongoDB
+motor==3.3.2
+pymongo==4.6.0
+beanie==1.24.0
+
+# Redis for caching
+redis==5.0.1
+aioredis==2.0.1
+
+# Object storage (Cloudflare R2)
+boto3==1.34.0
+aioboto3==12.1.0
+
+# DINOv3 and ML dependencies
+# PyTorch will be installed separately - skip for now to avoid conflicts
+# torch>=2.1.0
+# torchvision>=0.16.0  
+# torchaudio>=2.1.0
+transformers==4.36.0
+huggingface_hub==0.19.4
+timm==0.9.12
+pillow==10.1.0
+opencv-python==4.8.1.78
+numpy==1.24.4
+scikit-learn==1.3.2
+
+# Video processing for shot analysis
+ffmpeg-python==0.2.0
+moviepy==1.0.3
+
+# HTTP client for external APIs (PathRAG integration)
+httpx==0.25.2
+aiofiles==23.2.1
+loguru==0.7.2
+typer==0.9.0
+rich==13.7.0
+
+# Utilities
+python-dotenv==1.0.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
