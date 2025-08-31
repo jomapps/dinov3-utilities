@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List
 import time
 import numpy as np
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset, CharacterConsistency
+from app.core.database import MediaAsset, CharacterConsistency
 from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
@@ -23,7 +21,6 @@ class GroupByCharacterRequest(BaseModel):
 @router.post("/character-matching")
 async def character_matching(
     request: CharacterMatchingRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Advanced character consistency checking with detailed feedback."""
@@ -43,8 +40,7 @@ async def character_matching(
         # Process each test asset
         for test_asset_id in request.test_asset_ids:
             try:
-                result = await db.execute(select(MediaAsset).where(MediaAsset.id == test_asset_id))
-                test_asset = result.scalar_one_or_none()
+                test_asset = await MediaAsset.get(test_asset_id)
                 
                 if not test_asset or not test_asset.features_extracted:
                     consistency_results.append({
@@ -114,7 +110,7 @@ async def character_matching(
                     "confidence_score": 0.0
                 })
         
-        await db.commit()
+        
         
         # Calculate summary statistics
         valid_results = [r for r in consistency_results if "error" not in r]
@@ -143,7 +139,6 @@ async def character_matching(
 @router.post("/group-by-character")
 async def group_by_character(
     request: GroupByCharacterRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Group assets by detected characters/persons."""
@@ -155,8 +150,7 @@ async def group_by_character(
         asset_mapping = {}
         
         for asset_id in request.asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 features = np.array(asset.features)

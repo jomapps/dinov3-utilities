@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List
 import time
 import numpy as np
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset
+from app.core.database import MediaAsset
 from app.core.dinov3_service import DINOv3Service
 from app.core.config import settings
 
@@ -22,7 +20,6 @@ class BatchQualityRequest(BaseModel):
 @router.post("/batch-similarity")
 async def batch_similarity(
     request: BatchSimilarityRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Calculate similarity matrix for multiple assets."""
@@ -41,8 +38,7 @@ async def batch_similarity(
         asset_info = {}
         
         for asset_id in request.asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 features = np.array(asset.features)
@@ -99,7 +95,6 @@ async def batch_similarity(
 @router.post("/batch-quality-check")
 async def batch_quality_check(
     request: BatchQualityRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Analyze quality for multiple assets in batch."""
@@ -119,8 +114,7 @@ async def batch_quality_check(
         for asset_id in request.asset_ids:
             try:
                 # Get asset
-                result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-                asset = result.scalar_one_or_none()
+                asset = await MediaAsset.get(asset_id)
                 
                 if not asset:
                     quality_results.append({

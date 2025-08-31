@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List, Optional
 import time
 import numpy as np
@@ -11,7 +9,7 @@ import cv2
 import moviepy.editor as mp
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset, VideoShot
+from app.core.database import MediaAsset, VideoShot
 from app.core.storage import storage_service
 from app.core.dinov3_service import DINOv3Service
 
@@ -46,7 +44,6 @@ class ShotLibraryRequest(BaseModel):
 @router.post("/analyze-video-shots")
 async def analyze_video_shots(
     request: VideoAnalysisRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Analyze video for shot detection, camera movement, and cinematic patterns."""
@@ -176,8 +173,7 @@ async def analyze_video_shots(
 
 @router.post("/store-shot-data")
 async def store_shot_data(
-    request: StoreShotDataRequest,
-    db: AsyncSession = Depends(get_db)
+    request: StoreShotDataRequest
 ) -> Dict[str, Any]:
     """Store analyzed shot data with contextual information and tags."""
     start_time = time.time()
@@ -216,7 +212,7 @@ async def store_shot_data(
                 "tags": video_shot.tags
             })
         
-        await db.commit()
+        
         
         processing_time = time.time() - start_time
         
@@ -235,7 +231,6 @@ async def store_shot_data(
 @router.post("/suggest-shots")
 async def suggest_shots(
     request: SuggestShotsRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Get cinematography recommendations based on scene requirements."""
@@ -315,8 +310,7 @@ async def get_shot_library(
     genre: Optional[str] = None,
     tags: Optional[str] = None,
     page: int = 1,
-    page_size: int = 20,
-    db: AsyncSession = Depends(get_db)
+    page_size: int = 20
 ) -> Dict[str, Any]:
     """Browse and search the shot database with filters."""
     start_time = time.time()

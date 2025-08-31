@@ -6,7 +6,7 @@ from PIL import Image
 import numpy as np
 from typing import List, Optional, Tuple, Dict, Any
 import asyncio
-import aioredis
+import redis.asyncio as redis
 from loguru import logger
 import time
 import io
@@ -52,7 +52,7 @@ class DINOv3Service:
             logger.info("Using CPU")
         
         # Load DINOv3 model
-        model_name = f"facebook/{settings.DINOV3_MODEL_NAME}"
+        model_name = settings.DINOV3_MODEL_NAME
         logger.info(f"Loading model: {model_name}")
         
         try:
@@ -75,7 +75,7 @@ class DINOv3Service:
         
         # Initialize Redis for caching
         try:
-            self.redis = await aioredis.from_url(settings.REDIS_URL)
+            self.redis = redis.from_url(settings.REDIS_URL)
             await self.redis.ping()
             logger.info("Redis connection established")
         except Exception as e:

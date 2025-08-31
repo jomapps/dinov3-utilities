@@ -1,12 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 import torch
 import psutil
 import time
 from loguru import logger
 
-from app.core.database import get_db
+# Database imports removed - using MongoDB with Beanie
 from app.core.dinov3_service import DINOv3Service
 from app.core.config import settings
 

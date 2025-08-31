@@ -8,7 +8,7 @@ import asyncio
 from loguru import logger
 
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import init_database, close_database
 from app.core.dinov3_service import DINOv3Service
 from app.routers import (
     media_management,
@@ -33,22 +33,23 @@ async def lifespan(app: FastAPI):
     global dinov3_service
     
     logger.info("Starting DINOv3 Utilities Service...")
-    
-    # Create database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
+
+    # Initialize MongoDB database
+    await init_database()
+    logger.info("Database initialized successfully")
+
     # Initialize DINOv3 service
     dinov3_service = DINOv3Service()
     await dinov3_service.initialize()
-    
+
     logger.info("DINOv3 service initialized successfully")
-    
+
     yield
-    
+
     # Cleanup
     if dinov3_service:
         await dinov3_service.cleanup()
+    await close_database()
     logger.info("DINOv3 Utilities Service shutdown complete")
 
 # Create FastAPI app

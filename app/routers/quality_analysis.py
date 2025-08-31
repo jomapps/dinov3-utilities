@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any
 import time
 import numpy as np
@@ -9,7 +7,7 @@ from PIL import Image
 import io
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset, QualityAnalysis
+from app.core.database import MediaAsset, QualityAnalysis
 from app.core.storage import storage_service
 from app.core.dinov3_service import DINOv3Service
 
@@ -21,7 +19,6 @@ class QualityRequest(BaseModel):
 @router.post("/analyze-quality")
 async def analyze_quality(
     request: QualityRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Comprehensive image quality analysis using DINOv3 features."""
@@ -55,7 +52,7 @@ async def analyze_quality(
         )
         
         db.add(quality_analysis)
-        await db.commit()
+        
         
         processing_time = time.time() - start_time
         
@@ -81,7 +78,6 @@ async def analyze_quality(
 @router.post("/analyze-image-metrics")
 async def analyze_image_metrics(
     request: QualityRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Detailed image quality metrics including sharpness, lighting, composition."""
@@ -139,7 +135,7 @@ async def analyze_image_metrics(
                 )
                 db.add(quality_analysis)
             
-            await db.commit()
+            
         
         processing_time = time.time() - start_time
         

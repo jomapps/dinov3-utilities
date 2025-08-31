@@ -1,6 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
 from typing import Dict, Any, List
 import time
 from PIL import Image
@@ -8,7 +6,7 @@ import io
 from datetime import datetime
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset
+from app.core.database import MediaAsset
 from app.core.storage import storage_service
 from app.core.dinov3_service import DINOv3Service
 
@@ -17,7 +15,6 @@ router = APIRouter()
 @router.post("/extract-features")
 async def extract_features(
     asset_id: str,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Extract DINOv3 feature embeddings from a media asset."""
@@ -25,9 +22,8 @@ async def extract_features(
     
     try:
         # Get asset from database
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-        asset = result.scalar_one_or_none()
-        
+        asset = await MediaAsset.get(asset_id)
+
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
         
@@ -43,12 +39,8 @@ async def extract_features(
             }
         
         # Update status to processing
-        await db.execute(
-            update(MediaAsset)
-            .where(MediaAsset.id == asset_id)
-            .values(processing_status="processing")
-        )
-        await db.commit()
+        asset.processing_status = "processing"
+        await asset.save()
         
         # Download image from storage
         await storage_service.initialize()
@@ -64,17 +56,11 @@ async def extract_features(
         await dinov3_service.cache_features(asset_id, features)
         
         # Update database with features
-        await db.execute(
-            update(MediaAsset)
-            .where(MediaAsset.id == asset_id)
-            .values(
-                features=features.tolist(),
-                features_extracted=True,
-                features_timestamp=datetime.utcnow(),
-                processing_status="completed"
-            )
-        )
-        await db.commit()
+        asset.features = features.tolist()
+        asset.features_extracted = True
+        asset.features_timestamp = datetime.utcnow()
+        asset.processing_status = "completed"
+        await asset.save()
         
         processing_time = time.time() - start_time
         
@@ -91,15 +77,14 @@ async def extract_features(
         raise
     except Exception as e:
         # Update status to error
-        await db.execute(
-            update(MediaAsset)
-            .where(MediaAsset.id == asset_id)
-            .values(
-                processing_status="error",
-                error_message=str(e)
-            )
-        )
-        await db.commit()
+        try:
+            asset = await MediaAsset.get(asset_id)
+            if asset:
+                asset.processing_status = "error"
+                asset.error_message = str(e)
+                await asset.save()
+        except:
+            pass  # Don't fail if we can't update error status
         
         logger.error(f"Feature extraction failed for {asset_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -107,7 +92,6 @@ async def extract_features(
 @router.post("/preprocess-image")
 async def preprocess_image(
     asset_id: str,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Preprocess image using DINOv3 standard pipeline."""
@@ -115,9 +99,8 @@ async def preprocess_image(
     
     try:
         # Get asset from database
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-        asset = result.scalar_one_or_none()
-        
+        asset = await MediaAsset.get(asset_id)
+
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
         

@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List
 import time
 import numpy as np
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset
+from app.core.database import MediaAsset
 from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
@@ -24,7 +22,6 @@ class ReferenceEnforcementRequest(BaseModel):
 @router.post("/validate-shot-consistency")
 async def validate_shot_consistency(
     request: ShotConsistencyRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Validate character consistency across cinematic shots."""
@@ -44,8 +41,7 @@ async def validate_shot_consistency(
         # Validate each shot
         for i, shot_asset_id in enumerate(request.shot_asset_ids):
             try:
-                result = await db.execute(select(MediaAsset).where(MediaAsset.id == shot_asset_id))
-                shot_asset = result.scalar_one_or_none()
+                shot_asset = await MediaAsset.get(shot_asset_id)
                 
                 if not shot_asset or not shot_asset.features_extracted:
                     shot_validations.append({
@@ -147,7 +143,6 @@ async def validate_shot_consistency(
 @router.post("/reference-enforcement")
 async def reference_enforcement(
     request: ReferenceEnforcementRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Enforce character reference consistency in generated content."""
@@ -167,8 +162,7 @@ async def reference_enforcement(
         # Check compliance for each generated asset
         for generated_asset_id in request.generated_asset_ids:
             try:
-                result = await db.execute(select(MediaAsset).where(MediaAsset.id == generated_asset_id))
-                generated_asset = result.scalar_one_or_none()
+                generated_asset = await MediaAsset.get(generated_asset_id)
                 
                 if not generated_asset or not generated_asset.features_extracted:
                     compliance_results.append({

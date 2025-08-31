@@ -1,14 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, Optional
 import time
 from PIL import Image
 import io
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset
+from app.core.database import MediaAsset
 from app.core.storage import storage_service
 from app.core.dinov3_service import DINOv3Service
 from app.core.config import settings
@@ -18,7 +16,6 @@ router = APIRouter()
 @router.post("/upload-media")
 async def upload_media(
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Upload media asset to R2 and register in system."""
@@ -68,9 +65,7 @@ async def upload_media(
             processing_status="uploaded"
         )
         
-        db.add(asset)
-        await db.commit()
-        await db.refresh(asset)
+        await asset.insert()
         
         processing_time = time.time() - start_time
         
@@ -96,14 +91,12 @@ async def upload_media(
 
 @router.get("/media/{asset_id}")
 async def get_media(
-    asset_id: str,
-    db: AsyncSession = Depends(get_db)
+    asset_id: str
 ) -> Dict[str, Any]:
     """Retrieve media asset information and access URL."""
     try:
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-        asset = result.scalar_one_or_none()
-        
+        asset = await MediaAsset.get(asset_id)
+
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
         
@@ -131,23 +124,21 @@ async def get_media(
 
 @router.delete("/media/{asset_id}")
 async def delete_media(
-    asset_id: str,
-    db: AsyncSession = Depends(get_db)
+    asset_id: str
 ) -> Dict[str, Any]:
     """Remove media asset from R2 and database."""
     try:
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-        asset = result.scalar_one_or_none()
-        
+        asset = await MediaAsset.get(asset_id)
+
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
-        
+
         # Delete from storage
         await storage_service.initialize()
         storage_deleted = await storage_service.delete_file(asset.r2_object_key)
-        
+
         # Delete from database
-        await db.delete(asset)
+        await asset.delete()
         await db.commit()
         
         return {

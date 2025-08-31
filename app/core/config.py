@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_PUBLIC_URL: str = "https://media.rumbletv.com"
     
     # DINOv3 Model Configuration
-    DINOV3_MODEL_NAME: str = "dinov3_vitb16_pretrain"
+    DINOV3_MODEL_NAME: str = "models/dinov3-vitb16-pretrain-lvd1689m"
     DINOV3_DEVICE: str = "cuda"
     DINOV3_BATCH_SIZE: int = 32
     DINOV3_CACHE_SIZE: int = 1000
@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra fields in .env file
 
 # Global settings instance
 settings = Settings()

@@ -11,25 +11,25 @@ pymongo==4.6.0
 beanie==1.24.0
 
 # Redis for caching
-redis==5.0.1
-aioredis==2.0.1
+redis>=5.0.1,<6.0.0
 
 # Object storage (Cloudflare R2)
-boto3==1.34.0
-aioboto3==12.1.0
+boto3>=1.34.70,<1.35.0
+aiobotocore==2.13.1
+aioboto3==13.1.1
 
 # DINOv3 and ML dependencies
 # PyTorch will be installed separately - skip for now to avoid conflicts
 # torch>=2.1.0
-# torchvision>=0.16.0  
+# torchvision>=0.16.0
 # torchaudio>=2.1.0
-transformers==4.36.0
-huggingface_hub==0.19.4
-timm==0.9.12
-pillow==10.1.0
-opencv-python==4.8.1.78
-numpy==1.24.4
-scikit-learn==1.3.2
+transformers>=4.36.0,<5.0.0
+huggingface_hub>=0.19.4,<1.0.0
+timm>=0.9.12,<1.0.0
+pillow>=10.1.0,<11.0.0
+opencv-python>=4.8.1.78,<5.0.0
+numpy>=1.26.4,<2.0.0
+scikit-learn>=1.3.2,<2.0.0
 
 # Video processing for shot analysis
 ffmpeg-python==0.2.0
@@ -44,6 +44,7 @@ rich==13.7.0
 
 # Utilities
 python-dotenv==1.0.0
+psutil>=5.9.0,<6.0.0
 
 # Development and testing
 pytest==7.4.3
@@ -52,4 +53,3 @@ pytest-mock==3.12.0
 black==23.11.0
 isort==5.12.0
 flake8==6.1.0
-

@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List
 import time
 import numpy as np
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset, SimilarityResult
+from app.core.database import MediaAsset, SimilarityResult
 from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
@@ -27,7 +25,6 @@ class ConsistencyRequest(BaseModel):
 @router.post("/calculate-similarity")
 async def calculate_similarity(
     request: SimilarityRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Calculate cosine similarity between two media assets using DINOv3 features."""
@@ -69,7 +66,7 @@ async def calculate_similarity(
         )
         
         db.add(similarity_result)
-        await db.commit()
+        
         
         processing_time = time.time() - start_time
         
@@ -91,7 +88,6 @@ async def calculate_similarity(
 @router.post("/find-best-match")
 async def find_best_match(
     request: BestMatchRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Find the best matching asset from a set of candidates against a reference asset."""
@@ -110,8 +106,7 @@ async def find_best_match(
         # Get candidate assets
         candidate_results = []
         for candidate_id in request.candidate_asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == candidate_id))
-            candidate = result.scalar_one_or_none()
+            candidate = await MediaAsset.get(candidate_id)
             
             if candidate and candidate.features_extracted:
                 candidate_features = np.array(candidate.features)
@@ -147,7 +142,6 @@ async def find_best_match(
 @router.post("/validate-consistency")
 async def validate_consistency(
     request: ConsistencyRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Check if two assets show the same character/person with detailed analysis."""

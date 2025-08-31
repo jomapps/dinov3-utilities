@@ -1,62 +1,74 @@
 # DINOv3 Utilities Service
 
-A comprehensive FastAPI-based service for DINOv3 image analysis, featuring 30+ endpoints for feature extraction, similarity analysis, quality assessment, and cinematic intelligence.
+A production-ready FastAPI service for DINOv3 image analysis, featuring 30+ endpoints for feature extraction, similarity analysis, quality assessment, and cinematic intelligence.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Windows 11** 
-- **Python 3.9+** 
+- **Python 3.12+**
 - **MongoDB** (local installation)
 - **Redis** (local installation)
-- **NVIDIA GPU** (RTX 4060 16GB recommended)
+- **NVIDIA GPU** with 8GB+ VRAM (RTX 4060 Ti 16GB tested)
 - **CUDA 12.1+** for GPU acceleration
+- **DINOv3 Model** (included in `/models` directory)
 
-### Development Setup
+### Installation & Setup
 
-1. **Clone and Setup Environment**
-```powershell
-cd d:\Projects\dinov3-utilities
+1. **Clone Repository**
+```bash
+git clone <repository-url>
+cd dinov3-utilities
 ```
 
-2. **Start Development Environment**
-```powershell
-.\scripts\start_dev.ps1
+2. **Create Virtual Environment**
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
 ```
 
-This script will automatically:
-- **Create Python virtual environment** (`venv/`)
-- **Activate virtual environment**
-- **Install all dependencies** in isolated environment
-- **Check existing services** (MongoDB, Redis, PathRAG)
-- **Initialize MongoDB database** with Beanie ODM
-- **Launch FastAPI service** on port 3012
-
-3. **Test the API**
-```powershell
-.\scripts\test_api.ps1
+3. **Install Dependencies**
+```bash
+pip install -r requirements.txt
 ```
+
+4. **Configure Environment**
+```bash
+# Copy and edit .env file with your settings
+cp .env.example .env
+```
+
+5. **Start Services**
+```bash
+# Start MongoDB and Redis locally
+# Then start the application
+python -m uvicorn app.main:app --host 0.0.0.0 --port 3012 --reload
+```
+
+6. **Verify Installation**
+- API Documentation: http://localhost:3012/docs
+- Health Check: http://localhost:3012/api/v1/health
 
 ## 🏗️ Architecture
 
-### Core Services
-- **FastAPI** - Main API service with 30+ DINOv3 endpoints
-- **MongoDB** - Document-based metadata and feature storage with Beanie ODM
-- **Redis** - Feature caching and session management (existing local installation)
-- **Cloudflare R2** - Production object storage
-- **PathRAG** - ArangoDB integration for knowledge graph features (optional)
-- **DINOv3** - GPU-accelerated feature extraction
+### Core Components
+- **FastAPI** - REST API with 30+ endpoints and automatic OpenAPI documentation
+- **MongoDB + Beanie ODM** - Document database for metadata and feature storage
+- **Redis** - High-performance caching for feature vectors and results
+- **Cloudflare R2** - S3-compatible object storage for media assets
+- **DINOv3 Model** - Local GPU-accelerated vision transformer for feature extraction
+- **NVIDIA GPU** - CUDA acceleration for model inference
 
 ### Key Features
-- **Cloudflare R2 Asset Management** - Universal asset ID system
-- **Virtual Environment** - Isolated Python dependency management
-- **GPU Acceleration** - CUDA-optimized DINOv3 inference
-- **MongoDB Integration** - Document-based storage with Beanie ODM
-- **Batch Processing** - Efficient multi-asset operations
-- **Video Analysis** - Shot detection and cinematic intelligence
-- **Character Consistency** - Production-grade validation
-- **Quality Assessment** - Comprehensive image metrics
-- **PathRAG Integration** - Optional ArangoDB knowledge graph features
+- **🎯 Production Ready** - Fully tested and deployed configuration
+- **⚡ GPU Accelerated** - CUDA-optimized DINOv3 inference with 16GB VRAM support
+- **📦 Asset Management** - Complete media upload, processing, and retrieval pipeline
+- **🔍 Advanced Analytics** - Similarity analysis, quality assessment, character consistency
+- **🎬 Video Intelligence** - Shot detection, cinematic analysis, and recommendations
+- **📊 Batch Processing** - Efficient multi-asset operations with queue management
+- **🚀 High Performance** - Redis caching, optimized database queries, async processing
 
 ## 📋 Service Endpoints
 
@@ -110,23 +122,23 @@ This script will automatically:
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Environment Variables (.env)
 ```env
-# Database - MongoDB
+# Database Configuration
 MONGODB_URL=mongodb://localhost:27017/dinov3_db
 
-# Redis (existing local installation)
+# Redis Configuration
 REDIS_URL=redis://localhost:6379/0
 
 # Cloudflare R2 Storage
-CLOUDFLARE_R2_ENDPOINT=https://026089839555deec85ae1cfc77648038.r2.cloudflarestorage.com
-CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_key
-CLOUDFLARE_R2_BUCKET_NAME=rumble-fanz
-CLOUDFLARE_R2_PUBLIC_URL=https://media.rumbletv.com
+CLOUDFLARE_R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key_id
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_access_key
+CLOUDFLARE_R2_BUCKET_NAME=your_bucket_name
+CLOUDFLARE_R2_PUBLIC_URL=https://your-domain.com
 
-# DINOv3 Model
-DINOV3_MODEL_NAME=dinov3_vitb16_pretrain
+# DINOv3 Model Configuration
+DINOV3_MODEL_NAME=models/dinov3-vitb16-pretrain-lvd1689m
 DINOV3_DEVICE=cuda
 DINOV3_BATCH_SIZE=32
 
@@ -135,23 +147,19 @@ API_HOST=0.0.0.0
 API_PORT=3012
 CORS_ORIGINS=http://localhost:3012,http://127.0.0.1:3012
 
-# PathRAG Integration (Optional)
-PATHRAG_API_URL=http://localhost:5000
-PATHRAG_ENABLE=true
-PATHRAG_DEFAULT_TOP_K=5
-PATHRAG_MAX_TOKEN_FOR_TEXT_UNIT=512
-PATHRAG_MAX_TOKEN_FOR_GLOBAL_CONTEXT=2048
-PATHRAG_MAX_TOKEN_FOR_LOCAL_CONTEXT=4096
+# Hugging Face Token (for model downloads)
+HF_TOKEN=your_hugging_face_token
 
 # Processing Limits
 MAX_FILE_SIZE_MB=50
 MAX_BATCH_SIZE=100
 ```
 
-### GPU Requirements
-- **Minimum**: 8GB VRAM
-- **Recommended**: 16GB VRAM (RTX 4060/4070)
-- **Optimal**: 24GB+ VRAM for large batches
+### System Requirements
+- **GPU**: NVIDIA GPU with 8GB+ VRAM (RTX 4060 Ti 16GB tested and recommended)
+- **RAM**: 16GB+ system RAM
+- **Storage**: 10GB+ free space (for models and cache)
+- **OS**: Windows 11, Ubuntu 20.04+, or macOS (with CUDA support)
 
 ## 📊 Usage Examples
 
@@ -202,68 +210,98 @@ requests.post('http://localhost:3012/api/v1/store-shot-data',
               })
 ```
 
-## 🚀 Deployment
+## 🚀 Production Deployment
 
-### Production Checklist
-1. **Update Environment**
-   - Verify Cloudflare R2 credentials
-   - Use production MongoDB/Redis instances
-   - Set secure API keys
+### Pre-Deployment Checklist
+- ✅ **Environment Configuration**: Update `.env` with production credentials
+- ✅ **Database Setup**: Configure production MongoDB instance
+- ✅ **Storage Setup**: Configure Cloudflare R2 bucket and CDN
+- ✅ **GPU Drivers**: Install NVIDIA drivers and CUDA toolkit
+- ✅ **Model Files**: Ensure DINOv3 model is available in `/models` directory
+- ✅ **Security**: Set secure API keys and enable HTTPS
+- ✅ **Monitoring**: Configure health checks and logging
 
-2. **Virtual Environment Setup**
-   - Create isolated Python environment: `python -m venv venv`
-   - Activate environment: `.\venv\Scripts\Activate.ps1`
-   - Install dependencies: `pip install -r requirements.txt`
+### Deployment Steps
+1. **Server Setup**
+   ```bash
+   # Install system dependencies
+   sudo apt update && sudo apt install -y python3.12 python3.12-venv nvidia-driver-535
 
-3. **GPU Setup**
-   - Install CUDA drivers
-   - Verify PyTorch GPU support
-   - Test DINOv3 model loading
+   # Clone repository
+   git clone <your-repo> /opt/dinov3-utilities
+   cd /opt/dinov3-utilities
+   ```
 
-4. **Scaling**
-   - Configure multiple workers
-   - Set up load balancing
-   - Enable Redis clustering
+2. **Application Setup**
+   ```bash
+   # Create virtual environment
+   python3.12 -m venv venv
+   source venv/bin/activate
 
-## 🔍 Monitoring
+   # Install dependencies
+   pip install -r requirements.txt
+   ```
+
+3. **Service Configuration**
+   ```bash
+   # Create systemd service
+   sudo cp scripts/dinov3-service.service /etc/systemd/system/
+   sudo systemctl enable dinov3-service
+   sudo systemctl start dinov3-service
+   ```
+
+## 📊 Monitoring & Health Checks
 
 ### Health Endpoints
-- `/api/v1/health` - System status, GPU memory, model status
-- `/api/v1/model-info` - DINOv3 configuration and capabilities
+- `GET /api/v1/health` - System status, GPU memory, model status
+- `GET /api/v1/model-info` - DINOv3 configuration and capabilities
 
-### Key Metrics
-- **GPU Utilization** - Monitor VRAM usage
-- **Processing Time** - Track inference latency  
-- **Cache Hit Rate** - Redis feature caching efficiency
-- **Storage Usage** - R2/MinIO asset storage
+### Key Metrics to Monitor
+- **GPU Utilization** - VRAM usage and temperature
+- **Processing Latency** - Feature extraction and similarity calculation times
+- **Cache Performance** - Redis hit/miss ratios
+- **Database Performance** - MongoDB query times and connection pool status
+- **Storage Usage** - Cloudflare R2 bandwidth and storage consumption
+- **API Response Times** - Endpoint performance and error rates
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### Common Issues & Solutions
 
-**GPU Not Detected**
+**🔧 GPU Not Detected**
 ```bash
-# Check CUDA installation
+# Check NVIDIA drivers and CUDA
 nvidia-smi
-python -c "import torch; print(torch.cuda.is_available())"
+python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}, Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}')"
 ```
 
-**Model Loading Fails**
-- Verify internet connection for model download
-- Check available disk space (models ~1GB)
-- Ensure sufficient VRAM
-
-**Database Connection Issues**
+**🔧 Model Loading Issues**
 ```bash
-# Check Docker services
-docker-compose ps
-docker-compose logs postgres
+# Check model files exist
+ls -la models/dinov3-vitb16-pretrain-lvd1689m/
+# Verify VRAM availability
+nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits
 ```
 
-**Storage Upload Failures**
-- Verify MinIO is running on port 9000
-- Check bucket permissions
-- Validate file size limits
+**🔧 Database Connection Issues**
+```bash
+# Check MongoDB status
+sudo systemctl status mongod
+# Test connection
+python -c "from pymongo import MongoClient; print(MongoClient('mongodb://localhost:27017').admin.command('ping'))"
+```
+
+**🔧 Redis Connection Issues**
+```bash
+# Check Redis status
+redis-cli ping
+# Should return "PONG"
+```
+
+**🔧 API Startup Failures**
+- Check port 3012 availability: `netstat -tulpn | grep 3012`
+- Verify all dependencies installed: `pip check`
+- Check logs for specific error messages
 
 ## 📝 Development
 

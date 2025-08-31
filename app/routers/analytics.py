@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Dict, Any, List, Optional
 import time
 import numpy as np
 from loguru import logger
 
-from app.core.database import get_db, MediaAsset
+from app.core.database import MediaAsset
 from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
@@ -30,7 +28,6 @@ class FeatureClusteringRequest(BaseModel):
 @router.post("/semantic-search")
 async def semantic_search(
     request: SemanticSearchRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Search for semantically similar assets in a dataset."""
@@ -50,8 +47,7 @@ async def semantic_search(
         search_results = []
         
         for asset_id in request.dataset_asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 asset_features = np.array(asset.features)
@@ -90,7 +86,6 @@ async def semantic_search(
 @router.post("/anomaly-detection")
 async def anomaly_detection(
     request: AnomalyDetectionRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Detect anomalous assets that don't fit expected patterns."""
@@ -102,8 +97,7 @@ async def anomaly_detection(
         reference_info = {}
         
         for asset_id in request.reference_asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 features = np.array(asset.features)
@@ -121,8 +115,7 @@ async def anomaly_detection(
         test_info = {}
         
         for asset_id in request.test_asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 features = np.array(asset.features)
@@ -180,7 +173,6 @@ async def anomaly_detection(
 @router.post("/feature-clustering")
 async def feature_clustering(
     request: FeatureClusteringRequest,
-    db: AsyncSession = Depends(get_db),
     dinov3_service: DINOv3Service = Depends()
 ) -> Dict[str, Any]:
     """Cluster assets based on DINOv3 features."""
@@ -192,8 +184,7 @@ async def feature_clustering(
         asset_mapping = {}
         
         for asset_id in request.asset_ids:
-            result = await db.execute(select(MediaAsset).where(MediaAsset.id == asset_id))
-            asset = result.scalar_one_or_none()
+            asset = await MediaAsset.get(asset_id)
             
             if asset and asset.features_extracted:
                 features = np.array(asset.features)
