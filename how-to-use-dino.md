@@ -1,5 +1,37 @@
 # How to Use DINOv3 Utilities Service
 
+## 📖 What This App Does
+
+The **DINOv3 Utilities Service** is a production-ready FastAPI application that provides AI-powered visual intelligence through 30+ specialized endpoints. Built on Meta's DINOv3 vision transformer model, it offers:
+
+### 🎯 Core Capabilities
+- **🖼️ Image Feature Extraction** - Generate 384-dimensional embeddings using DINOv3
+- **🔍 Visual Similarity Analysis** - Compare images with cosine similarity and advanced metrics
+- **👤 Character Consistency Validation** - Ensure character consistency across scenes (perfect for animation/gaming)
+- **📊 Quality Assessment** - Automated image quality analysis and scoring
+- **🎬 Video Intelligence** - Shot detection, camera movement analysis, and cinematic recommendations
+- **🔄 Batch Processing** - Efficient processing of multiple assets simultaneously
+- **🎨 Semantic Search** - Content-based image retrieval using natural language
+- **📈 Advanced Analytics** - Clustering, anomaly detection, and pattern recognition
+
+### 🏭 Production Features
+- **⚡ GPU Acceleration** - CUDA-optimized inference with 16GB VRAM support
+- **📦 Cloud Storage** - Integrated Cloudflare R2 for scalable media storage
+- **💾 Smart Caching** - Redis-powered caching for optimal performance
+- **📊 Monitoring** - Health checks, metrics, and performance tracking
+- **🔧 Configurable** - Flexible thresholds and processing parameters
+
+### 🎯 Perfect For
+- **Animation Studios** - Character consistency across scenes
+- **Game Development** - Asset quality control and style matching
+- **Content Creation** - Video analysis and cinematic intelligence
+- **E-commerce** - Visual search and product similarity
+- **Media & Entertainment** - Content analysis and recommendations
+
+---
+
+## 📚 Integration Guide
+
 A comprehensive guide for external applications integrating with the DINOv3 Utilities Service for AI-powered image analysis, feature extraction, and video intelligence.
 
 ## 🚀 Quick Start
