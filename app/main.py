@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import uvicorn
 from typing import List, Optional, Dict, Any
@@ -152,6 +153,18 @@ app.include_router(
     tags=["Configuration"],
     dependencies=[Depends(get_dinov3_service)]
 )
+
+# Mount static files for dashboard
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page():
+    """Serve the static dashboard HTML page."""
+    try:
+        with open("app/static/dashboard/index.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
 
 @app.get("/")
 async def root():

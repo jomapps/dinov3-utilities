@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DINOv3 Utilities Dashboard</title>
+  <link rel="stylesheet" href="/static/dashboard/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">DINOv3 Utilities Dashboard</div>
+    <div class="controls">
+      <label>Base URL
+        <input id="baseUrl" type="text" value="" placeholder="http://localhost:3012" />
+      </label>
+      <span id="healthStatus" class="health unknown">Unknown</span>
+      <button id="refreshBtn" class="btn">Refresh Schema</button>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <input id="search" class="search" type="text" placeholder="Search endpoints" />
+      <nav id="nav"></nav>
+    </aside>
+    <main class="main">
+      <section id="endpointInfo" class="endpoint-info"></section>
+      <section id="requestSection" class="request"></section>
+      <section id="responseSection" class="response hidden"></section>
+    </main>
+  </div>
+
+  <script src="/static/dashboard/ui.js"></script>
+</body>
+</html>
+
+
