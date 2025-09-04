@@ -7,31 +7,174 @@
   <link rel="stylesheet" href="/static/dashboard/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- Header -->
   <header class="app-header">
-    <div class="title">DINOv3 Utilities Dashboard</div>
-    <div class="controls">
-      <label>Base URL
-        <input id="baseUrl" type="text" value="" placeholder="https://dino.ft.tc" />
-      </label>
-      <span id="healthStatus" class="health unknown">Unknown</span>
-      <button id="refreshBtn" class="btn">Refresh Schema</button>
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">🦕</div>
+        <div class="logo-text">
+          <h1>DINOv3 Utilities</h1>
+          <span class="logo-subtitle">API Dashboard</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="header-center">
+      <div class="connection-status">
+        <div class="status-indicator" id="healthStatus">
+          <div class="status-dot"></div>
+          <span class="status-text">Connecting...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <div class="header-controls">
+        <div class="url-input-group">
+          <label for="baseUrl" class="url-label">API Base URL</label>
+          <input id="baseUrl" type="text" value="" placeholder="https://dino.ft.tc" class="url-input" />
+        </div>
+        <button id="refreshBtn" class="btn btn-primary">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M3 21v-5h5"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
     </div>
   </header>
 
+  <!-- Main App Layout -->
   <div class="app">
+    <!-- Sidebar -->
     <aside class="sidebar">
-      <input id="search" class="search" type="text" placeholder="Search endpoints" />
-      <nav id="nav"></nav>
+      <div class="sidebar-header">
+        <div class="api-prefix-note">
+          <span class="prefix-label">All endpoints start with:</span>
+          <code class="prefix-code">/api/v1</code>
+        </div>
+        <div class="search-container">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input id="search" class="search-input" type="text" placeholder="Search endpoints..." />
+        </div>
+      </div>
+      
+      <div class="sidebar-content">
+        <nav id="nav" class="endpoint-nav"></nav>
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="recent-assets">
+          <div class="assets-header">
+            <h4>Recent Assets</h4>
+            <button id="clearAssetsBtn" class="btn btn-secondary btn-sm" title="Clear asset history">Clear</button>
+          </div>
+          <div id="recentAssetsList" class="assets-list">
+            <div class="no-assets">No assets uploaded yet</div>
+          </div>
+        </div>
+        
+        <div class="stats">
+          <div class="stat-item">
+            <span class="stat-label">Endpoints</span>
+            <span id="endpointCount" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Categories</span>
+            <span id="categoryCount" class="stat-value">0</span>
+          </div>
+        </div>
+      </div>
     </aside>
+
+    <!-- Main Content -->
     <main class="main">
-      <section id="endpointInfo" class="endpoint-info"></section>
-      <section id="requestSection" class="request"></section>
-      <section id="responseSection" class="response hidden"></section>
+      <div class="main-header">
+        <div class="breadcrumb">
+          <span id="breadcrumbText">Select an endpoint to get started</span>
+        </div>
+        <div class="main-actions">
+          <button id="clearHistoryBtn" class="btn btn-secondary" style="display: none;">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18"/>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+            Clear History
+          </button>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <!-- Welcome State -->
+        <div id="welcomeState" class="welcome-state">
+          <div class="welcome-content">
+            <div class="welcome-icon">🚀</div>
+            <h2>Welcome to DINOv3 Utilities Dashboard</h2>
+            <p>Select an endpoint from the sidebar to start testing the API. This dashboard provides a comprehensive interface for all DINOv3 utilities endpoints.</p>
+            <div class="welcome-features">
+              <div class="feature-item">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-text">
+                  <h4>Feature Extraction</h4>
+                  <p>Extract and analyze image features using DINOv3</p>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">🎬</div>
+                <div class="feature-text">
+                  <h4>Video Analysis</h4>
+                  <p>Analyze video shots and maintain consistency</p>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">👥</div>
+                <div class="feature-text">
+                  <h4>Character Analysis</h4>
+                  <p>Match and group characters across scenes</p>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-text">
+                  <h4>Batch Processing</h4>
+                  <p>Process multiple assets efficiently</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Endpoint Content -->
+        <div id="endpointContent" class="endpoint-content" style="display: none;">
+          <section id="endpointInfo" class="endpoint-info"></section>
+          <section id="requestSection" class="request-section"></section>
+          <section id="responseSection" class="response-section hidden"></section>
+        </div>
+      </div>
     </main>
   </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="/static/dashboard/ui.js"></script>
 </body>
