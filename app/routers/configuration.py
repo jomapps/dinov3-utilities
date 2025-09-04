@@ -96,5 +96,7 @@ async def get_configuration() -> Dict[str, Any]:
         "max_batch_size": settings.MAX_BATCH_SIZE,
         "request_timeout_seconds": settings.REQUEST_TIMEOUT_SECONDS,
         "dinov3_batch_size": settings.DINOV3_BATCH_SIZE,
-        "dinov3_device": settings.DINOV3_DEVICE
+        "dinov3_device": settings.DINOV3_DEVICE,
+        "site_url": settings.SITE_URL,
+        "cors_origins": settings.CORS_ORIGINS
     }

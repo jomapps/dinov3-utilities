@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    SITE_URL: Optional[str] = None
     
     # Logging
     LOG_LEVEL: str = "INFO"

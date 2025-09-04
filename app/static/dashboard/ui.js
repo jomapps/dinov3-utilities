@@ -12,8 +12,18 @@
   function computeBaseUrl() {
     const input = $('#baseUrl');
     if (input && input.value.trim()) return input.value.trim();
+
+    // Auto-detect based on current location
     const { protocol, host } = window.location;
-    return `${protocol}//${host}`;
+    const currentUrl = `${protocol}//${host}`;
+
+    // If we're on the production domain, use it
+    if (host.includes('dino.ft.tc')) {
+      return 'https://dino.ft.tc';
+    }
+
+    // Otherwise use current location
+    return currentUrl;
   }
 
   function setHealth(status) {
@@ -36,13 +46,23 @@
   }
 
   async function loadSchema() {
-    const url = `${state.baseUrl}/openapi.json`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to load OpenAPI schema');
-    const json = await res.json();
-    state.schema = json;
-    state.endpoints = extractEndpoints(json);
-    renderSidebar();
+    try {
+      const url = `${state.baseUrl}/openapi.json`;
+      console.log('Loading schema from:', url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to load OpenAPI schema: ${res.status}`);
+      const json = await res.json();
+      console.log('Schema loaded successfully:', json);
+      state.schema = json;
+      state.endpoints = extractEndpoints(json);
+      console.log('Extracted endpoints:', state.endpoints.length);
+      renderSidebar();
+    } catch (error) {
+      console.error('Error loading schema:', error);
+      // Show error in the sidebar
+      const nav = $('#nav');
+      nav.innerHTML = `<div class="group"><div class="group-title">Error</div><div style="color: var(--bad); padding: 8px;">Failed to load API schema: ${error.message}</div></div>`;
+    }
   }
 
   function extractEndpoints(schema) {
@@ -366,8 +386,32 @@
     c.appendChild(wrap);
   }
 
+  async function loadConfig() {
+    try {
+      const res = await fetch(`${state.baseUrl}/api/v1/config`);
+      if (res.ok) {
+        const config = await res.json();
+        console.log('Configuration loaded:', config);
+
+        // Update base URL if site_url is configured
+        if (config.site_url && config.site_url !== state.baseUrl) {
+          console.log('Updating base URL from config:', config.site_url);
+          state.baseUrl = config.site_url;
+          $('#baseUrl').value = state.baseUrl;
+        }
+
+        return config;
+      }
+    } catch (error) {
+      console.warn('Could not load configuration:', error);
+    }
+    return null;
+  }
+
   function init() {
+    console.log('Initializing dashboard...');
     state.baseUrl = computeBaseUrl();
+    console.log('Base URL:', state.baseUrl);
     $('#baseUrl').value = state.baseUrl;
     $('#baseUrl').addEventListener('change', async () => {
       state.baseUrl = computeBaseUrl();
@@ -384,8 +428,16 @@
     $('#search').addEventListener('input', renderSidebar);
 
     (async () => {
-      await checkHealth();
-      await loadSchema();
+      try {
+        console.log('Starting configuration load...');
+        await loadConfig();
+        console.log('Starting health check and schema load...');
+        await checkHealth();
+        await loadSchema();
+        console.log('Dashboard initialization complete');
+      } catch (error) {
+        console.error('Dashboard initialization failed:', error);
+      }
     })();
   }
 

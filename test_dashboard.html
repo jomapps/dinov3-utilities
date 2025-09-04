@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Test</title>
+  <style>
+    /* Test styles to verify CSS is working */
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial;
+      background: #0b0f14;
+      color: #e6edf3;
+      line-height: 1.5;
+    }
+    
+    .test-header {
+      background: #121821;
+      padding: 20px;
+      border-bottom: 1px solid #1e2633;
+      text-align: center;
+    }
+    
+    .test-content {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .test-button {
+      background: #4b9fff;
+      border: none;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px;
+    }
+    
+    .test-button:hover {
+      background: #3a8bff;
+    }
+    
+    .status-box {
+      background: #121821;
+      border: 1px solid #1e2633;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .success {
+      color: #23c552;
+    }
+    
+    .error {
+      color: #ff5c5c;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-header">
+    <h1>DINOv3 Dashboard Test</h1>
+    <p>Testing dashboard styling and functionality</p>
+  </div>
+  
+  <div class="test-content">
+    <div class="status-box">
+      <h2>Dashboard Status Check</h2>
+      <p id="dashboard-status">Checking dashboard...</p>
+      <button class="test-button" onclick="testDashboard()">Test Dashboard</button>
+      <button class="test-button" onclick="testAPI()">Test API</button>
+    </div>
+    
+    <div class="status-box">
+      <h2>API Endpoints Test</h2>
+      <div id="api-results"></div>
+    </div>
+  </div>
+
+  <script>
+    async function testDashboard() {
+      const statusEl = document.getElementById('dashboard-status');
+      statusEl.innerHTML = 'Testing dashboard access...';
+      
+      try {
+        const response = await fetch('/dashboard');
+        if (response.ok) {
+          statusEl.innerHTML = '<span class="success">✓ Dashboard is accessible</span>';
+        } else {
+          statusEl.innerHTML = '<span class="error">✗ Dashboard returned status: ' + response.status + '</span>';
+        }
+      } catch (error) {
+        statusEl.innerHTML = '<span class="error">✗ Dashboard test failed: ' + error.message + '</span>';
+      }
+    }
+    
+    async function testAPI() {
+      const resultsEl = document.getElementById('api-results');
+      resultsEl.innerHTML = 'Testing API endpoints...';
+      
+      const tests = [
+        { name: 'Health Check', url: '/api/v1/health' },
+        { name: 'Model Info', url: '/api/v1/model-info' },
+        { name: 'OpenAPI Schema', url: '/openapi.json' }
+      ];
+      
+      let results = '';
+      
+      for (const test of tests) {
+        try {
+          const response = await fetch(test.url);
+          if (response.ok) {
+            results += `<p><span class="success">✓ ${test.name}</span></p>`;
+          } else {
+            results += `<p><span class="error">✗ ${test.name} (${response.status})</span></p>`;
+          }
+        } catch (error) {
+          results += `<p><span class="error">✗ ${test.name} (${error.message})</span></p>`;
+        }
+      }
+      
+      resultsEl.innerHTML = results;
+    }
+    
+    // Auto-run tests on page load
+    window.addEventListener('load', () => {
+      testDashboard();
+      testAPI();
+    });
+  </script>
+</body>
+</html>

@@ -167,7 +167,9 @@ async def root():
         "service": "DINOv3 Utilities",
         "version": "1.0.0",
         "status": "running",
+        "site_url": settings.SITE_URL,
         "endpoints": "/docs",
+        "dashboard": "/dashboard",
         "health": "/api/v1/health"
     }
 

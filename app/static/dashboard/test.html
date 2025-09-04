@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Test</title>
+  <link rel="stylesheet" href="/static/dashboard/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">DINOv3 Utilities Dashboard - Test</div>
+    <div class="controls">
+      <label>Base URL
+        <input id="baseUrl" type="text" value="http://localhost:3012" placeholder="http://localhost:3012" />
+      </label>
+      <span id="healthStatus" class="health unknown">Unknown</span>
+      <button id="refreshBtn" class="btn">Refresh Schema</button>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <input id="search" class="search" type="text" placeholder="Search endpoints" />
+      <nav id="nav">
+        <div class="group">
+          <div class="group-title">Test Endpoints</div>
+          <button class="endpoint">GET /api/v1/health</button>
+          <button class="endpoint">GET /api/v1/model-info</button>
+          <button class="endpoint">POST /api/v1/upload-media</button>
+        </div>
+      </nav>
+    </aside>
+    <main class="main">
+      <section class="section">
+        <h2>Dashboard Test</h2>
+        <p>This is a test version of the dashboard to verify styling is working.</p>
+        
+        <div class="row">
+          <span class="badge">Status: 200</span>
+          <span class="badge">Time: 45 ms</span>
+        </div>
+        
+        <div class="kv">
+          <strong>API Status:</strong>
+          <span id="api-status">Testing...</span>
+        </div>
+        
+        <div class="kv">
+          <strong>CSS Status:</strong>
+          <span id="css-status">Testing...</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Test if CSS is working
+    function testCSS() {
+      const body = document.body;
+      const computedStyle = getComputedStyle(body);
+      const bgColor = computedStyle.backgroundColor;
+      const textColor = computedStyle.color;
+      
+      const cssStatus = document.getElementById('css-status');
+      
+      if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+        cssStatus.innerHTML = `<span style="color: #23c552;">✓ Working (bg: ${bgColor})</span>`;
+      } else {
+        cssStatus.innerHTML = `<span style="color: #ff5c5c;">✗ Not working (bg: ${bgColor})</span>`;
+      }
+    }
+    
+    // Test API
+    async function testAPI() {
+      const apiStatus = document.getElementById('api-status');
+      const healthStatus = document.getElementById('healthStatus');
+      
+      try {
+        const response = await fetch('/api/v1/health');
+        if (response.ok) {
+          const data = await response.json();
+          apiStatus.innerHTML = `<span style="color: #23c552;">✓ ${data.status}</span>`;
+          healthStatus.textContent = 'Healthy';
+          healthStatus.className = 'health ok';
+        } else {
+          apiStatus.innerHTML = `<span style="color: #ff5c5c;">✗ Error ${response.status}</span>`;
+          healthStatus.textContent = 'Unhealthy';
+          healthStatus.className = 'health bad';
+        }
+      } catch (error) {
+        apiStatus.innerHTML = `<span style="color: #ff5c5c;">✗ ${error.message}</span>`;
+        healthStatus.textContent = 'Unknown';
+        healthStatus.className = 'health unknown';
+      }
+    }
+    
+    // Run tests when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      testCSS();
+      testAPI();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Debug</title>
+  <link rel="stylesheet" href="/static/dashboard/styles.css" />
+  <style>
+    .debug-info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 1000;
+      max-width: 300px;
+    }
+    
+    .debug-section {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    
+    .test-styles {
+      background: var(--panel, #121821);
+      color: var(--text, #e6edf3);
+      padding: 20px;
+      margin: 20px;
+      border: 1px solid var(--border, #1e2633);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="debug-info" id="debugInfo">
+    <div>Loading debug info...</div>
+  </div>
+
+  <div class="test-styles">
+    <h1>Dashboard Debug Test</h1>
+    <p>This should have dark theme styling if CSS is working.</p>
+    
+    <div class="debug-section">
+      <h3>CSS Variables Test</h3>
+      <div style="background: var(--bg); color: var(--text); padding: 10px;">
+        Background should be dark blue (#0b0f14)
+      </div>
+    </div>
+    
+    <div class="debug-section">
+      <h3>Button Test</h3>
+      <button class="btn">Test Button</button>
+    </div>
+    
+    <div class="debug-section">
+      <h3>Health Status Test</h3>
+      <span class="health ok">Healthy</span>
+      <span class="health bad">Unhealthy</span>
+      <span class="health unknown">Unknown</span>
+    </div>
+  </div>
+
+  <script>
+    function updateDebugInfo() {
+      const debugEl = document.getElementById('debugInfo');
+      const computedStyle = getComputedStyle(document.body);
+      
+      const info = {
+        'CSS Loaded': document.styleSheets.length > 0,
+        'Body BG': computedStyle.backgroundColor,
+        'Body Color': computedStyle.color,
+        'Font Family': computedStyle.fontFamily,
+        'CSS Variables': {
+          '--bg': computedStyle.getPropertyValue('--bg'),
+          '--text': computedStyle.getPropertyValue('--text'),
+          '--panel': computedStyle.getPropertyValue('--panel')
+        },
+        'Stylesheets': Array.from(document.styleSheets).map(sheet => {
+          try {
+            return {
+              href: sheet.href,
+              rules: sheet.cssRules ? sheet.cssRules.length : 'Cannot access'
+            };
+          } catch (e) {
+            return { href: sheet.href, error: e.message };
+          }
+        })
+      };
+      
+      debugEl.innerHTML = '<pre>' + JSON.stringify(info, null, 2) + '</pre>';
+    }
+    
+    // Update debug info when page loads
+    window.addEventListener('load', updateDebugInfo);
+    
+    // Also update after a short delay to catch any late-loading styles
+    setTimeout(updateDebugInfo, 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Production Dashboard Test</title>
+  <link rel="stylesheet" href="/static/dashboard/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">DINOv3 Production Test - dino.ft.tc</div>
+    <div class="controls">
+      <span id="urlDisplay" class="badge">Loading...</span>
+      <span id="healthStatus" class="health unknown">Unknown</span>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="section">
+        <h3>Production Test Results</h3>
+        <div id="testResults">Running tests...</div>
+      </div>
+    </aside>
+    <main class="main">
+      <section class="section">
+        <h2>Dashboard Production Test</h2>
+        <p>This page tests if the dashboard is working correctly on the production domain.</p>
+        
+        <div class="kv">
+          <strong>Current URL:</strong>
+          <span id="currentUrl">-</span>
+        </div>
+        
+        <div class="kv">
+          <strong>Detected Base URL:</strong>
+          <span id="detectedUrl">-</span>
+        </div>
+        
+        <div class="kv">
+          <strong>Configuration Status:</strong>
+          <span id="configStatus">-</span>
+        </div>
+        
+        <div class="kv">
+          <strong>API Health:</strong>
+          <span id="apiHealth">-</span>
+        </div>
+        
+        <div class="kv">
+          <strong>Schema Load:</strong>
+          <span id="schemaStatus">-</span>
+        </div>
+        
+        <button class="btn" onclick="runTests()">Run Tests Again</button>
+        <button class="btn" onclick="window.location.href='/dashboard'">Go to Main Dashboard</button>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function detectBaseUrl() {
+      const { protocol, host } = window.location;
+      const currentUrl = `${protocol}//${host}`;
+      
+      // If we're on the production domain, use it
+      if (host.includes('dino.ft.tc')) {
+        return 'https://dino.ft.tc';
+      }
+      
+      // Otherwise use current location
+      return currentUrl;
+    }
+    
+    async function testConfiguration() {
+      const baseUrl = detectBaseUrl();
+      
+      try {
+        const response = await fetch(`${baseUrl}/api/v1/config`);
+        if (response.ok) {
+          const config = await response.json();
+          return { success: true, config };
+        } else {
+          return { success: false, error: `HTTP ${response.status}` };
+        }
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function testHealth() {
+      const baseUrl = detectBaseUrl();
+      
+      try {
+        const response = await fetch(`${baseUrl}/api/v1/health`);
+        if (response.ok) {
+          const health = await response.json();
+          return { success: true, health };
+        } else {
+          return { success: false, error: `HTTP ${response.status}` };
+        }
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function testSchema() {
+      const baseUrl = detectBaseUrl();
+      
+      try {
+        const response = await fetch(`${baseUrl}/openapi.json`);
+        if (response.ok) {
+          const schema = await response.json();
+          const endpointCount = Object.keys(schema.paths || {}).length;
+          return { success: true, endpointCount };
+        } else {
+          return { success: false, error: `HTTP ${response.status}` };
+        }
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function runTests() {
+      const currentUrl = window.location.href;
+      const detectedUrl = detectBaseUrl();
+      
+      document.getElementById('currentUrl').textContent = currentUrl;
+      document.getElementById('detectedUrl').textContent = detectedUrl;
+      document.getElementById('urlDisplay').textContent = detectedUrl;
+      
+      // Test configuration
+      document.getElementById('configStatus').innerHTML = '<span style="color: #f0ad4e;">Testing...</span>';
+      const configResult = await testConfiguration();
+      if (configResult.success) {
+        const siteUrl = configResult.config.site_url;
+        document.getElementById('configStatus').innerHTML = `<span style="color: #23c552;">✓ OK (site_url: ${siteUrl})</span>`;
+      } else {
+        document.getElementById('configStatus').innerHTML = `<span style="color: #ff5c5c;">✗ ${configResult.error}</span>`;
+      }
+      
+      // Test health
+      document.getElementById('apiHealth').innerHTML = '<span style="color: #f0ad4e;">Testing...</span>';
+      const healthResult = await testHealth();
+      if (healthResult.success) {
+        const status = healthResult.health.status;
+        const modelLoaded = healthResult.health.model?.loaded;
+        document.getElementById('apiHealth').innerHTML = `<span style="color: #23c552;">✓ ${status} (model: ${modelLoaded})</span>`;
+        
+        // Update health status in header
+        document.getElementById('healthStatus').textContent = 'Healthy';
+        document.getElementById('healthStatus').className = 'health ok';
+      } else {
+        document.getElementById('apiHealth').innerHTML = `<span style="color: #ff5c5c;">✗ ${healthResult.error}</span>`;
+        document.getElementById('healthStatus').textContent = 'Unhealthy';
+        document.getElementById('healthStatus').className = 'health bad';
+      }
+      
+      // Test schema
+      document.getElementById('schemaStatus').innerHTML = '<span style="color: #f0ad4e;">Testing...</span>';
+      const schemaResult = await testSchema();
+      if (schemaResult.success) {
+        document.getElementById('schemaStatus').innerHTML = `<span style="color: #23c552;">✓ OK (${schemaResult.endpointCount} endpoints)</span>`;
+      } else {
+        document.getElementById('schemaStatus').innerHTML = `<span style="color: #ff5c5c;">✗ ${schemaResult.error}</span>`;
+      }
+    }
+    
+    // Run tests when page loads
+    document.addEventListener('DOMContentLoaded', runTests);
+  </script>
+</body>
+</html>
