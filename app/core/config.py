@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_SECRET_ACCESS_KEY: str = "1b06a8ab4e537af7a35891c73ba50b5edf3e665f6044897777eecdcf8e5fff9c"
     CLOUDFLARE_R2_BUCKET_NAME: str = "rumble-fanz"
     CLOUDFLARE_R2_PUBLIC_URL: str = "https://media.rumbletv.com"
+
+    # S3/R2 Storage aliases for backward compatibility
+    S3_ENDPOINT_URL: str = CLOUDFLARE_R2_ENDPOINT
+    S3_BUCKET_NAME: str = CLOUDFLARE_R2_BUCKET_NAME
     
     # DINOv3 Model Configuration
     DINOV3_MODEL_NAME: str = "models/dinov3-vitb16-pretrain-lvd1689m"

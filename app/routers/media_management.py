@@ -15,8 +15,7 @@ router = APIRouter()
 
 @router.post("/upload-media")
 async def upload_media(
-    file: UploadFile = File(...),
-    dinov3_service: DINOv3Service = Depends()
+    file: UploadFile = File(...)
 ) -> Dict[str, Any]:
     """Upload media asset to R2 and register in system."""
     start_time = time.time()
@@ -30,27 +29,75 @@ async def upload_media(
                 detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE_MB}MB"
             )
         
-        # Validate content type
-        if not file.content_type or not file.content_type.startswith('image/'):
+        # Validate content type with improved detection
+        def is_valid_image_content_type(content_type, filename):
+            """Check if content type indicates an image file."""
+            # Direct image content type check
+            if content_type and content_type.startswith('image/'):
+                return True
+
+            # Check file extension if content type is missing or generic
+            if filename:
+                import mimetypes
+                guessed_type, _ = mimetypes.guess_type(filename)
+                if guessed_type and guessed_type.startswith('image/'):
+                    return True
+
+            # Allow common generic types that might contain images
+            generic_types = ['application/octet-stream', 'binary/octet-stream']
+            if content_type in generic_types and filename:
+                # Check if filename has image extension
+                image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg']
+                filename_lower = filename.lower()
+                if any(filename_lower.endswith(ext) for ext in image_extensions):
+                    return True
+
+            return False
+
+        if not is_valid_image_content_type(file.content_type, file.filename):
             raise HTTPException(
                 status_code=400,
-                detail="Only image files are supported"
+                detail="Only image files are supported. Please ensure the file has an image content-type or proper file extension."
             )
         
         # Upload to storage
         await storage_service.initialize()
+
+        # Ensure content_type is not None for storage service
+        content_type_for_storage = file.content_type
+        if not content_type_for_storage:
+            # Guess content type from filename
+            import mimetypes
+            guessed_type, _ = mimetypes.guess_type(file.filename or '')
+            content_type_for_storage = guessed_type or 'application/octet-stream'
+
         upload_result = await storage_service.upload_file(
-            file_data, file.filename, file.content_type
+            file_data, file.filename, content_type_for_storage
         )
         
-        # Extract image metadata
+        # Extract image metadata and validate it's actually an image
         try:
             image = Image.open(io.BytesIO(file_data))
             width, height = image.size
             format_name = image.format
+
+            # Validate image dimensions
+            if not width or not height or width <= 0 or height <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid image file: image has invalid dimensions"
+                )
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as e:
-            logger.warning(f"Could not extract image metadata: {e}")
-            width = height = format_name = None
+            # If we can't read as image, it's not a valid image file
+            logger.error(f"Failed to process image file: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid image file: file is not a valid image or is corrupted"
+            )
         
         # Create database record
         asset = MediaAsset(

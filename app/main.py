@@ -43,6 +43,11 @@ async def lifespan(app: FastAPI):
     dinov3_service = DINOv3Service()
     await dinov3_service.initialize()
 
+    # Set the service instance in routers to avoid circular import issues
+    from app.routers import feature_extraction, quality_analysis
+    feature_extraction.set_dinov3_service(dinov3_service)
+    quality_analysis.set_dinov3_service(dinov3_service)
+
     logger.info("DINOv3 service initialized successfully")
 
     yield
@@ -80,78 +85,67 @@ async def get_dinov3_service() -> DINOv3Service:
 app.include_router(
     media_management.router,
     prefix="/api/v1",
-    tags=["Media Management"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Media Management"]
 )
 
 app.include_router(
     feature_extraction.router,
     prefix="/api/v1",
-    tags=["Feature Extraction"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Feature Extraction"]
 )
 
 app.include_router(
     similarity.router,
     prefix="/api/v1",
-    tags=["Similarity & Matching"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Similarity & Matching"]
 )
 
 app.include_router(
     quality_analysis.router,
     prefix="/api/v1",
-    tags=["Quality Analysis"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Quality Analysis"]
 )
 
 app.include_router(
     batch_processing.router,
     prefix="/api/v1",
-    tags=["Batch Processing"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Batch Processing"]
 )
 
 app.include_router(
     character_analysis.router,
     prefix="/api/v1",
-    tags=["Character Analysis"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Character Analysis"]
 )
 
 app.include_router(
     production_services.router,
     prefix="/api/v1",
-    tags=["Production Services"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Production Services"]
 )
 
 app.include_router(
     video_analysis.router,
     prefix="/api/v1",
-    tags=["Video Analysis"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Video Analysis"]
 )
 
 app.include_router(
     utilities.router,
     prefix="/api/v1",
-    tags=["Utilities"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Utilities"]
 )
 
 app.include_router(
     analytics.router,
     prefix="/api/v1",
-    tags=["Advanced Analytics"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Advanced Analytics"]
 )
 
 app.include_router(
     configuration.router,
     prefix="/api/v1",
-    tags=["Configuration"],
-    dependencies=[Depends(get_dinov3_service)]
+    tags=["Configuration"]
 )
 
 # Mount static files for dashboard

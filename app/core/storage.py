@@ -8,6 +8,7 @@ import mimetypes
 from loguru import logger
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from app.core.config import settings
 
@@ -40,7 +41,12 @@ class StorageService:
     async def _run_sync(self, func, *args, **kwargs):
         """Run synchronous function in thread pool."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self.executor, func, *args, **kwargs)
+        # Use partial to handle keyword arguments
+        if kwargs:
+            func_with_kwargs = partial(func, *args, **kwargs)
+            return await loop.run_in_executor(self.executor, func_with_kwargs)
+        else:
+            return await loop.run_in_executor(self.executor, func, *args)
     
     async def upload_file(self, file_data: bytes, filename: str, content_type: str) -> Dict[str, Any]:
         """Upload file to S3/R2 storage."""

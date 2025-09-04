@@ -12,21 +12,64 @@ from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
 
+# Global variable to hold the service instance
+_dinov3_service_instance = None
+
+def set_dinov3_service(service: DINOv3Service):
+    """Set the global DINOv3 service instance"""
+    global _dinov3_service_instance
+    _dinov3_service_instance = service
+    print(f"DEBUG: DINOv3 service set in feature_extraction router: {service is not None}")
+
+async def get_dinov3_service() -> DINOv3Service:
+    """Get the DINOv3 service instance with multiple fallback strategies"""
+    global _dinov3_service_instance
+
+    # Strategy 1: Use the set instance
+    if _dinov3_service_instance is not None:
+        return _dinov3_service_instance
+
+    # Strategy 2: Try to get from main module directly
+    try:
+        import sys
+        if 'app.main' in sys.modules:
+            main_module = sys.modules['app.main']
+            if hasattr(main_module, 'dinov3_service') and main_module.dinov3_service is not None:
+                # Cache it for future use
+                _dinov3_service_instance = main_module.dinov3_service
+                return main_module.dinov3_service
+    except Exception as e:
+        pass
+
+    # Strategy 3: Create a new instance if needed (last resort)
+    try:
+        from app.core.dinov3_service import DINOv3Service
+        service = DINOv3Service()
+        await service.initialize()
+        _dinov3_service_instance = service
+        return service
+    except Exception as e:
+        pass
+
+    raise HTTPException(status_code=503, detail="DINOv3 service not initialized")
+
 @router.post("/extract-features")
 async def extract_features(
-    asset_id: str,
-    dinov3_service: DINOv3Service = Depends()
+    asset_id: str
 ) -> Dict[str, Any]:
     """Extract DINOv3 feature embeddings from a media asset."""
     start_time = time.time()
     
     try:
+        # Get the DINOv3 service instance
+        dinov3_service = await get_dinov3_service()
+
         # Get asset from database
         asset = await MediaAsset.get(asset_id)
 
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
-        
+
         # Check if features already extracted
         if asset.features_extracted and asset.features is not None:
             return {
@@ -37,21 +80,21 @@ async def extract_features(
                 "processing_time": 0.0,
                 "cached": True
             }
-        
+
         # Update status to processing
         asset.processing_status = "processing"
         await asset.save()
-        
+
         # Download image from storage
         await storage_service.initialize()
         image_data = await storage_service.download_file(asset.r2_object_key)
-        
+
         # Load image
         image = Image.open(io.BytesIO(image_data))
-        
+
         # Extract features
         features = await dinov3_service.extract_features(image)
-        
+
         # Cache features
         await dinov3_service.cache_features(asset_id, features)
         
@@ -91,23 +134,25 @@ async def extract_features(
 
 @router.post("/preprocess-image")
 async def preprocess_image(
-    asset_id: str,
-    dinov3_service: DINOv3Service = Depends()
+    asset_id: str
 ) -> Dict[str, Any]:
     """Preprocess image using DINOv3 standard pipeline."""
     start_time = time.time()
     
     try:
+        # Get the DINOv3 service instance
+        dinov3_service = await get_dinov3_service()
+
         # Get asset from database
         asset = await MediaAsset.get(asset_id)
 
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
-        
+
         # Download image from storage
         await storage_service.initialize()
         image_data = await storage_service.download_file(asset.r2_object_key)
-        
+
         # Load and preprocess image
         image = Image.open(io.BytesIO(image_data))
         preprocessed_tensor = dinov3_service.preprocess_image(image)
