@@ -44,9 +44,10 @@ async def lifespan(app: FastAPI):
     await dinov3_service.initialize()
 
     # Set the service instance in routers to avoid circular import issues
-    from app.routers import feature_extraction, quality_analysis
+    from app.routers import feature_extraction, quality_analysis, video_analysis
     feature_extraction.set_dinov3_service(dinov3_service)
     quality_analysis.set_dinov3_service(dinov3_service)
+    video_analysis.set_dinov3_service(dinov3_service)
 
     logger.info("DINOv3 service initialized successfully")
 

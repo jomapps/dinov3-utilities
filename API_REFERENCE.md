@@ -60,6 +60,7 @@ Currently, the API does not require authentication. For production deployments, 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/v1/analyze-video-shots` | POST | Analyze video for shot detection |
+| `/api/v1/analyze-image-composition` | POST | Analyze image composition and visual elements |
 | `/api/v1/store-shot-data` | POST | Store shot analysis data |
 | `/api/v1/suggest-shots` | POST | Get cinematography recommendations |
 | `/api/v1/shot-library` | GET | Browse shot database |
@@ -130,6 +131,55 @@ Content-Type: application/json
 {
   "asset_id_1": "uuid-string-1",
   "asset_id_2": "uuid-string-2"
+}
+```
+
+### Analyze Image Composition
+```http
+POST /api/v1/analyze-image-composition
+Content-Type: application/json
+
+{
+  "asset_id": "uuid-string",
+  "extract_features": true
+}
+```
+
+**Response:**
+```json
+{
+  "asset_id": "uuid-string",
+  "filename": "image.jpg",
+  "image_dimensions": {
+    "width": 1024,
+    "height": 1024
+  },
+  "composition_analysis": {
+    "shot_size": "close_up",
+    "shot_angle": "eye_level",
+    "framing": "standard",
+    "aspect_ratio": 1.0
+  },
+  "enhanced_analysis": {
+    "rule_of_thirds_score": 0.65,
+    "symmetry_score": {
+      "horizontal_symmetry": 0.7,
+      "vertical_symmetry": 0.6,
+      "overall_symmetry": 0.65
+    },
+    "depth_of_field": "shallow",
+    "color_analysis": {
+      "color_diversity": 0.8,
+      "dominant_hue": 15,
+      "color_balance": 0.75,
+      "warm_cool_ratio": 3.0
+    },
+    "edge_density": "medium",
+    "composition_balance": 0.72
+  },
+  "features": [0.123, -0.456, 0.789, ...],
+  "composition_tags": ["close_up", "rule_of_thirds", "warm_tones", "dof_shallow"],
+  "processing_time": 2.1
 }
 ```
 

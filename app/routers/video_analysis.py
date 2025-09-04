@@ -15,6 +15,46 @@ from app.core.dinov3_service import DINOv3Service
 
 router = APIRouter()
 
+# Global variable to hold the service instance
+_dinov3_service_instance = None
+
+def set_dinov3_service(service: DINOv3Service):
+    """Set the global DINOv3 service instance"""
+    global _dinov3_service_instance
+    _dinov3_service_instance = service
+
+async def get_dinov3_service() -> DINOv3Service:
+    """Get the DINOv3 service instance with multiple fallback strategies"""
+    global _dinov3_service_instance
+
+    # Strategy 1: Use the set instance
+    if _dinov3_service_instance is not None:
+        return _dinov3_service_instance
+
+    # Strategy 2: Try to get from main module directly
+    try:
+        import sys
+        if 'app.main' in sys.modules:
+            main_module = sys.modules['app.main']
+            if hasattr(main_module, 'dinov3_service') and main_module.dinov3_service is not None:
+                # Cache it for future use
+                _dinov3_service_instance = main_module.dinov3_service
+                return main_module.dinov3_service
+    except Exception as e:
+        pass
+
+    # Strategy 3: Create a new instance if needed (last resort)
+    try:
+        from app.core.dinov3_service import DINOv3Service
+        service = DINOv3Service()
+        await service.initialize()
+        _dinov3_service_instance = service
+        return service
+    except Exception as e:
+        pass
+
+    raise HTTPException(status_code=503, detail="DINOv3 service not initialized")
+
 class VideoAnalysisRequest(BaseModel):
     video_asset_id: str
     shot_detection_threshold: float = 0.3
@@ -40,6 +80,10 @@ class ShotLibraryRequest(BaseModel):
     tags: Optional[List[str]] = None
     page: int = 1
     page_size: int = 20
+
+class ImageCompositionRequest(BaseModel):
+    asset_id: str
+    extract_features: bool = True
 
 @router.post("/analyze-video-shots")
 async def analyze_video_shots(
@@ -190,6 +234,82 @@ async def analyze_video_shots(
         raise
     except Exception as e:
         logger.error(f"Video shot analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analyze-image-composition")
+async def analyze_image_composition(
+    request: ImageCompositionRequest
+) -> Dict[str, Any]:
+    """Analyze image composition including shot size, framing, and visual elements."""
+    start_time = time.time()
+    
+    try:
+        # Get image asset
+        image_asset = await MediaAsset.get(request.asset_id)
+        
+        if not image_asset:
+            raise HTTPException(status_code=404, detail="Image asset not found")
+        
+        # Validate that the asset is an image file
+        if not image_asset.content_type or not image_asset.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Asset is not an image file. Found content type: {image_asset.content_type}. Please upload an image file for composition analysis."
+            )
+        
+        # Download image from storage
+        await storage_service.initialize()
+        image_data = await storage_service.download_file(image_asset.r2_object_key)
+        
+        if not image_data:
+            raise HTTPException(status_code=404, detail="Image file not found in storage")
+        
+        # Load image
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Analyze composition using existing function
+        composition_analysis = analyze_shot_composition(image)
+        
+        # Extract DINOv3 features if requested
+        features = None
+        if request.extract_features:
+            try:
+                dinov3_service = await get_dinov3_service()
+                features = await dinov3_service.extract_features(image)
+            except Exception as e:
+                logger.warning(f"Feature extraction failed for image {request.asset_id}: {e}")
+        
+        # Enhanced composition analysis
+        enhanced_analysis = analyze_image_composition_enhanced(image)
+        
+        # Generate composition tags
+        composition_tags = generate_image_composition_tags(composition_analysis, enhanced_analysis)
+        
+        processing_time = time.time() - start_time
+        
+        return {
+            "asset_id": request.asset_id,
+            "filename": image_asset.filename,
+            "image_dimensions": {
+                "width": image.width,
+                "height": image.height
+            },
+            "composition_analysis": {
+                "shot_size": composition_analysis["shot_size"],
+                "shot_angle": composition_analysis["shot_angle"],
+                "framing": composition_analysis["framing"],
+                "aspect_ratio": composition_analysis["aspect_ratio"]
+            },
+            "enhanced_analysis": enhanced_analysis,
+            "features": features.tolist() if features is not None else None,
+            "composition_tags": composition_tags,
+            "processing_time": processing_time
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Image composition analysis failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/store-shot-data")
@@ -538,3 +658,206 @@ def calculate_shot_relevance(shot, scene_description, emotional_tone, desired_ta
         score += len(common_words) * 5
     
     return score
+
+def analyze_image_composition_enhanced(image):
+    """Enhanced composition analysis for images with more detailed metrics."""
+    width, height = image.size
+    aspect_ratio = width / height
+    
+    # Convert to numpy array for analysis
+    img_array = np.array(image)
+    if len(img_array.shape) == 3:
+        img_gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    else:
+        img_gray = img_array
+    
+    # Rule of thirds analysis
+    rule_of_thirds_score = analyze_rule_of_thirds(img_gray)
+    
+    # Symmetry analysis
+    symmetry_score = analyze_symmetry(img_gray)
+    
+    # Depth of field estimation (simplified)
+    depth_of_field = analyze_depth_of_field(img_gray)
+    
+    # Color composition analysis
+    color_analysis = analyze_color_composition(img_array)
+    
+    # Edge density analysis
+    edge_density = analyze_edge_density(img_gray)
+    
+    return {
+        "rule_of_thirds_score": rule_of_thirds_score,
+        "symmetry_score": symmetry_score,
+        "depth_of_field": depth_of_field,
+        "color_analysis": color_analysis,
+        "edge_density": edge_density,
+        "composition_balance": calculate_composition_balance(rule_of_thirds_score, symmetry_score, edge_density)
+    }
+
+def analyze_rule_of_thirds(img_gray):
+    """Analyze rule of thirds composition."""
+    h, w = img_gray.shape
+    third_h, third_w = h // 3, w // 3
+    
+    # Define rule of thirds intersection points
+    intersections = [
+        (third_h, third_w),           # Top-left
+        (third_h, 2 * third_w),       # Top-right
+        (2 * third_h, third_w),       # Bottom-left
+        (2 * third_h, 2 * third_w)    # Bottom-right
+    ]
+    
+    # Calculate variance around intersection points
+    total_variance = 0
+    for y, x in intersections:
+        # Sample 20x20 region around intersection
+        y1, y2 = max(0, y-10), min(h, y+10)
+        x1, x2 = max(0, x-10), min(w, x+10)
+        region = img_gray[y1:y2, x1:x2]
+        if region.size > 0:
+            total_variance += np.var(region)
+    
+    # Normalize score (higher variance = more interesting composition)
+    return min(total_variance / 10000, 1.0)
+
+def analyze_symmetry(img_gray):
+    """Analyze horizontal and vertical symmetry."""
+    h, w = img_gray.shape
+    
+    # Horizontal symmetry
+    top_half = img_gray[:h//2, :]
+    bottom_half = img_gray[h//2:, :]
+    if bottom_half.shape[0] != top_half.shape[0]:
+        bottom_half = bottom_half[:top_half.shape[0], :]
+    
+    horizontal_symmetry = 1.0 - np.mean(np.abs(top_half - np.flipud(bottom_half))) / 255.0
+    
+    # Vertical symmetry
+    left_half = img_gray[:, :w//2]
+    right_half = img_gray[:, w//2:]
+    if right_half.shape[1] != left_half.shape[1]:
+        right_half = right_half[:, :left_half.shape[1]]
+    
+    vertical_symmetry = 1.0 - np.mean(np.abs(left_half - np.fliplr(right_half))) / 255.0
+    
+    return {
+        "horizontal_symmetry": max(0, horizontal_symmetry),
+        "vertical_symmetry": max(0, vertical_symmetry),
+        "overall_symmetry": (horizontal_symmetry + vertical_symmetry) / 2
+    }
+
+def analyze_depth_of_field(img_gray):
+    """Estimate depth of field using edge detection."""
+    # Apply Gaussian blur to simulate different focus levels
+    blurred = cv2.GaussianBlur(img_gray, (15, 15), 0)
+    
+    # Calculate edge strength
+    edges = cv2.Canny(img_gray, 50, 150)
+    blurred_edges = cv2.Canny(blurred, 50, 150)
+    
+    # Compare edge preservation
+    edge_ratio = np.sum(edges) / (np.sum(blurred_edges) + 1e-8)
+    
+    if edge_ratio > 1.5:
+        return "shallow"
+    elif edge_ratio > 1.1:
+        return "medium"
+    else:
+        return "deep"
+
+def analyze_color_composition(img_array):
+    """Analyze color composition and distribution."""
+    if len(img_array.shape) != 3:
+        return {"color_diversity": 0, "dominant_colors": [], "color_balance": 0}
+    
+    # Convert to HSV for better color analysis
+    hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
+    
+    # Calculate color diversity (standard deviation of hue)
+    hue_std = np.std(hsv[:, :, 0])
+    color_diversity = min(hue_std / 60, 1.0)  # Normalize to [0,1]
+    
+    # Dominant color analysis (simplified)
+    hist_h = cv2.calcHist([hsv], [0], None, [180], [0, 180])
+    dominant_hue = np.argmax(hist_h)
+    
+    # Color balance (warm vs cool)
+    warm_pixels = np.sum((hsv[:, :, 0] < 30) | (hsv[:, :, 0] > 150))
+    cool_pixels = np.sum((hsv[:, :, 0] >= 30) & (hsv[:, :, 0] <= 150))
+    total_pixels = hsv.shape[0] * hsv.shape[1]
+    
+    color_balance = warm_pixels / (total_pixels + 1e-8)
+    
+    return {
+        "color_diversity": color_diversity,
+        "dominant_hue": int(dominant_hue),
+        "color_balance": color_balance,  # 0 = cool, 1 = warm
+        "warm_cool_ratio": warm_pixels / (cool_pixels + 1e-8)
+    }
+
+def analyze_edge_density(img_gray):
+    """Analyze edge density for composition complexity."""
+    edges = cv2.Canny(img_gray, 50, 150)
+    edge_density = np.sum(edges > 0) / (img_gray.shape[0] * img_gray.shape[1])
+    
+    if edge_density > 0.1:
+        return "high"
+    elif edge_density > 0.05:
+        return "medium"
+    else:
+        return "low"
+
+def calculate_composition_balance(rule_of_thirds, symmetry, edge_density):
+    """Calculate overall composition balance score."""
+    # Weighted combination of different composition elements
+    balance_score = (
+        rule_of_thirds * 0.4 +
+        symmetry["overall_symmetry"] * 0.3 +
+        (0.5 if edge_density == "medium" else 0.3 if edge_density == "high" else 0.7) * 0.3
+    )
+    
+    return min(max(balance_score, 0.0), 1.0)
+
+def generate_image_composition_tags(composition_analysis, enhanced_analysis):
+    """Generate comprehensive tags for image composition."""
+    tags = []
+    
+    # Basic composition tags
+    tags.append(composition_analysis["shot_size"])
+    tags.append(composition_analysis["framing"])
+    
+    # Enhanced analysis tags
+    if enhanced_analysis["rule_of_thirds_score"] > 0.6:
+        tags.append("rule_of_thirds")
+    
+    if enhanced_analysis["symmetry_score"]["overall_symmetry"] > 0.7:
+        tags.append("symmetrical")
+    elif enhanced_analysis["symmetry_score"]["overall_symmetry"] < 0.3:
+        tags.append("asymmetrical")
+    
+    # Depth of field tags
+    tags.append(f"dof_{enhanced_analysis['depth_of_field']}")
+    
+    # Color composition tags
+    color_analysis = enhanced_analysis["color_analysis"]
+    if color_analysis["color_balance"] > 0.6:
+        tags.append("warm_tones")
+    elif color_analysis["color_balance"] < 0.4:
+        tags.append("cool_tones")
+    
+    if color_analysis["color_diversity"] > 0.7:
+        tags.append("colorful")
+    elif color_analysis["color_diversity"] < 0.3:
+        tags.append("monochromatic")
+    
+    # Edge density tags
+    tags.append(f"detail_{enhanced_analysis['edge_density']}")
+    
+    # Composition balance
+    if enhanced_analysis["composition_balance"] > 0.7:
+        tags.append("well_balanced")
+    elif enhanced_analysis["composition_balance"] < 0.4:
+        tags.append("dynamic_composition")
+    
+    return list(set(tags))  # Remove duplicates

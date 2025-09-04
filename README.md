@@ -104,6 +104,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 3012 --reload
 
 ### Video Analysis & Intelligence
 - `POST /analyze-video-shots` - Shot detection and camera analysis
+- `POST /analyze-image-composition` - Image composition and visual analysis
 - `POST /store-shot-data` - Build cinematic shot database
 - `POST /suggest-shots` - AI cinematography recommendations
 - `GET /shot-library` - Browse shot database

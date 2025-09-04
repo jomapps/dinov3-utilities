@@ -795,6 +795,9 @@
       case '/api/v1/analyze-video-shots':
         return createVideoAnalysisForm(ep);
       
+      case '/api/v1/analyze-image-composition':
+        return createImageCompositionForm(ep);
+      
       case '/api/v1/store-shot-data':
         return createStoreShotDataForm(ep);
       
@@ -1377,6 +1380,36 @@
     
     const keyframesGroup = createBooleanInput('extract_keyframes', false, 'Extract Keyframes', true, 'Whether to extract keyframes from shots');
     form.appendChild(keyframesGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Image Composition Analysis Form
+  function createImageCompositionForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎨</div>
+      <div class="form-text">
+        <h3>Analyze Image Composition</h3>
+        <p>Analyze image composition including shot size, framing, rule of thirds, symmetry, depth of field, and color analysis. Extract DINOv3 features for advanced visual understanding.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const imageGroup = assetManager.createAssetSelector('asset_id', true);
+    imageGroup.querySelector('.param-label').textContent = 'Image Asset ID';
+    form.appendChild(imageGroup);
+    
+    const featuresGroup = createBooleanInput('extract_features', false, 'Extract DINOv3 Features', true, 'Whether to extract DINOv3 feature embeddings');
+    form.appendChild(featuresGroup);
     
     container.appendChild(form);
     return container;
@@ -2099,6 +2132,7 @@
       '/api/v1/validate-shot-consistency',
       '/api/v1/reference-enforcement',
       '/api/v1/analyze-video-shots',
+      '/api/v1/analyze-image-composition',
       '/api/v1/store-shot-data',
       '/api/v1/suggest-shots',
       '/api/v1/semantic-search',
