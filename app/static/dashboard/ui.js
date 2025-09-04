@@ -109,6 +109,7 @@
         processing_status: assetData.processing_status
       };
       
+      console.log('Adding asset:', asset);
       state.uploadedAssets.set(asset.id, asset);
       state.assetHistory.unshift(asset);
       
@@ -119,6 +120,7 @@
       
       this.saveAssets();
       this.updateAssetSelector();
+      console.log('Asset added, total assets:', state.assetHistory.length);
       return asset;
     }
 
@@ -135,26 +137,27 @@
     }
 
     updateAssetSelector() {
-      const selectors = $$('.asset-selector');
-      selectors.forEach(selector => {
-        const currentValue = selector.value;
-        selector.innerHTML = '<option value="">Select an asset...</option>';
-        
-        this.getRecentAssets().forEach(asset => {
-          const option = document.createElement('option');
-          option.value = asset.id;
-          option.textContent = `${asset.filename} (${asset.id.slice(0, 8)}...)`;
-          option.dataset.assetId = asset.id;
-          selector.appendChild(option);
-        });
-        
-        if (currentValue && state.uploadedAssets.has(currentValue)) {
-          selector.value = currentValue;
-        }
-      });
-      
       // Update sidebar assets list
       this.updateSidebarAssets();
+    }
+
+    async addAssetById(assetId) {
+      try {
+        // Fetch asset data from API
+        const response = await fetch(`${state.baseUrl}/api/v1/media/${assetId}`);
+        if (response.ok) {
+          const assetData = await response.json();
+          const asset = this.addAsset(assetData);
+          toast.show(`Asset ${asset.filename} added successfully!`, 'success', 'Asset Added');
+          return asset;
+        } else {
+          toast.show(`Failed to fetch asset: ${response.status}`, 'error', 'Asset Error');
+          return null;
+        }
+      } catch (error) {
+        toast.show(`Error fetching asset: ${error.message}`, 'error', 'Asset Error');
+        return null;
+      }
     }
 
     updateSidebarAssets() {
@@ -199,10 +202,13 @@
         const saved = localStorage.getItem('dinov3-dashboard-assets');
         if (saved) {
           const assets = JSON.parse(saved);
+          console.log('Loading assets from localStorage:', assets);
           assets.forEach(asset => {
             state.uploadedAssets.set(asset.id, asset);
           });
           state.assetHistory = assets;
+        } else {
+          console.log('No saved assets found in localStorage');
         }
       } catch (e) {
         console.warn('Failed to load assets:', e);
@@ -221,55 +227,203 @@
       `;
       
       const container = document.createElement('div');
-      container.className = 'asset-input-container';
-      
-      const selector = document.createElement('select');
-      selector.className = 'param-input asset-selector';
-      selector.name = name;
-      selector.dataset.required = required;
+      container.className = 'asset-autocomplete-container';
       
       const input = document.createElement('input');
       input.type = 'text';
-      input.className = 'param-input asset-id-input';
+      input.className = 'param-input asset-autocomplete-input';
       input.name = name;
-      input.placeholder = 'Enter asset ID or select from recent uploads';
+      input.placeholder = 'Type asset ID or filename to search...';
       input.dataset.required = required;
+      input.autocomplete = 'off';
       
-      const toggleBtn = document.createElement('button');
-      toggleBtn.type = 'button';
-      toggleBtn.className = 'btn btn-secondary asset-toggle';
-      toggleBtn.innerHTML = '📋';
-      toggleBtn.title = 'Toggle between dropdown and text input';
-      toggleBtn.onclick = () => this.toggleAssetInput(container, selector, input);
+      const hintsContainer = document.createElement('div');
+      hintsContainer.className = 'asset-hints-container';
+      hintsContainer.style.display = 'none';
       
-      container.appendChild(selector);
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn-secondary asset-copy-btn';
+      copyBtn.innerHTML = '📋';
+      copyBtn.title = 'Copy current asset ID';
+      copyBtn.onclick = () => this.copyAssetId(input);
+      
       container.appendChild(input);
-      container.appendChild(toggleBtn);
+      container.appendChild(hintsContainer);
+      container.appendChild(copyBtn);
+      
+      // Add autocomplete functionality
+      this.setupAssetAutocomplete(input, hintsContainer);
       
       group.append(label, container);
-      
-      // Initialize with dropdown
-      selector.style.display = 'block';
-      input.style.display = 'none';
-      this.updateAssetSelector();
-      
       return group;
     }
 
-    toggleAssetInput(container, selector, input) {
-      const isSelectorVisible = selector.style.display !== 'none';
+    setupAssetAutocomplete(input, hintsContainer) {
+      let currentHints = [];
+      let selectedHintIndex = -1;
       
-      if (isSelectorVisible) {
-        selector.style.display = 'none';
-        input.style.display = 'block';
-        input.value = selector.value;
-        input.focus();
+      input.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        
+        if (query.length < 2) {
+          hintsContainer.style.display = 'none';
+          return;
+        }
+        
+        // Find matching assets
+        const matches = this.findMatchingAssets(query);
+        currentHints = matches.slice(0, 5); // Max 5 hints
+        selectedHintIndex = -1;
+        
+        if (currentHints.length > 0) {
+          this.renderHints(hintsContainer, currentHints, query);
+          hintsContainer.style.display = 'block';
+        } else {
+          hintsContainer.style.display = 'none';
+        }
+      });
+      
+      input.addEventListener('keydown', (e) => {
+        if (hintsContainer.style.display === 'none') return;
+        
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            selectedHintIndex = Math.min(selectedHintIndex + 1, currentHints.length - 1);
+            this.highlightHint(hintsContainer, selectedHintIndex);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            selectedHintIndex = Math.max(selectedHintIndex - 1, -1);
+            this.highlightHint(hintsContainer, selectedHintIndex);
+            break;
+          case 'Enter':
+            e.preventDefault();
+            if (selectedHintIndex >= 0 && currentHints[selectedHintIndex]) {
+              this.selectHint(input, hintsContainer, currentHints[selectedHintIndex]);
+            }
+            break;
+          case 'Escape':
+            hintsContainer.style.display = 'none';
+            selectedHintIndex = -1;
+            break;
+        }
+      });
+      
+      // Hide hints when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !hintsContainer.contains(e.target)) {
+          hintsContainer.style.display = 'none';
+        }
+      });
+    }
+    
+    findMatchingAssets(query) {
+      const assets = this.getRecentAssets();
+      const matches = [];
+      
+      assets.forEach(asset => {
+        const filename = asset.filename.toLowerCase();
+        const assetId = asset.id.toLowerCase();
+        const shortId = asset.id.slice(0, 8).toLowerCase();
+        
+        let score = 0;
+        
+        // Exact filename match (highest priority)
+        if (filename === query) {
+          score = 1000;
+        }
+        // Filename starts with query
+        else if (filename.startsWith(query)) {
+          score = 500;
+        }
+        // Filename contains query
+        else if (filename.includes(query)) {
+          score = 300;
+        }
+        // Exact asset ID match
+        else if (assetId === query) {
+          score = 200;
+        }
+        // Asset ID starts with query
+        else if (assetId.startsWith(query)) {
+          score = 150;
+        }
+        // Short ID match
+        else if (shortId === query) {
+          score = 100;
+        }
+        // Short ID starts with query
+        else if (shortId.startsWith(query)) {
+          score = 50;
+        }
+        
+        if (score > 0) {
+          matches.push({ ...asset, score });
+        }
+      });
+      
+      // Sort by score (highest first)
+      return matches.sort((a, b) => b.score - a.score);
+    }
+    
+    renderHints(container, hints, query) {
+      container.innerHTML = '';
+      
+      hints.forEach((asset, index) => {
+        const hint = document.createElement('div');
+        hint.className = 'asset-hint';
+        hint.dataset.index = index;
+        
+        const filename = this.highlightMatch(asset.filename, query);
+        const shortId = asset.id.slice(0, 8);
+        
+        hint.innerHTML = `
+          <div class="hint-filename">${filename}</div>
+          <div class="hint-id">${shortId}...</div>
+        `;
+        
+        hint.addEventListener('click', () => {
+          this.selectHint(container.previousElementSibling, container, asset);
+        });
+        
+        container.appendChild(hint);
+      });
+    }
+    
+    highlightMatch(text, query) {
+      const regex = new RegExp(`(${query})`, 'gi');
+      return text.replace(regex, '<mark>$1</mark>');
+    }
+    
+    highlightHint(container, index) {
+      const hints = container.querySelectorAll('.asset-hint');
+      hints.forEach((hint, i) => {
+        hint.classList.toggle('highlighted', i === index);
+      });
+    }
+    
+    selectHint(input, container, asset) {
+      input.value = asset.id;
+      container.style.display = 'none';
+      
+      // Trigger change event for form validation
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    copyAssetId(input) {
+      if (input.value.trim()) {
+        navigator.clipboard.writeText(input.value.trim()).then(() => {
+          toast.show('Asset ID copied to clipboard!', 'success', 'Copied');
+        }).catch(() => {
+          toast.show('Failed to copy asset ID', 'error', 'Copy Failed');
+        });
       } else {
-        input.style.display = 'none';
-        selector.style.display = 'block';
-        selector.value = input.value;
+        toast.show('No asset ID to copy', 'warning', 'No Asset ID');
       }
     }
+
   }
 
   const assetManager = new AssetManager();
@@ -555,31 +709,14 @@
     title.textContent = 'Request Parameters';
     section.appendChild(title);
     
-    // Special handling for upload-media endpoint
-    if (ep.path === '/api/v1/upload-media') {
-      section.appendChild(createFileUploadForm());
+    // Create custom form based on endpoint
+    const customForm = createCustomForm(ep);
+    if (customForm) {
+      section.appendChild(customForm);
     } else {
-      // Path and Query Parameters
-      const pathParams = ep.parameters.filter(p => p.in === 'path');
-      const queryParams = ep.parameters.filter(p => p.in === 'query');
-      
-      if (pathParams.length > 0 || queryParams.length > 0) {
-        const paramsContainer = document.createElement('div');
-        paramsContainer.className = 'param-grid';
-        
-        [...pathParams, ...queryParams].forEach(param => {
-          const group = createParameterGroup(param);
-          paramsContainer.appendChild(group);
-        });
-        
-        section.appendChild(paramsContainer);
-      }
-      
-      // Request Body
-      const bodySection = buildBodyEditor(ep);
-      if (bodySection) {
-        section.appendChild(bodySection);
-      }
+      // Fallback to generic form
+      const genericForm = createGenericForm(ep);
+      section.appendChild(genericForm);
     }
     
     // Action Buttons
@@ -611,6 +748,96 @@
     section.appendChild(actions);
     
     container.appendChild(section);
+  }
+
+  function createCustomForm(ep) {
+    // Custom forms for specific endpoints
+    switch (ep.path) {
+      case '/api/v1/upload-media':
+        return createFileUploadForm();
+      
+      case '/api/v1/media/{asset_id}':
+        return createMediaInfoForm(ep);
+      
+      case '/api/v1/extract-features':
+        return createExtractFeaturesForm(ep);
+      
+      case '/api/v1/calculate-similarity':
+        return createSimilarityForm(ep);
+      
+      case '/api/v1/find-best-match':
+        return createBestMatchForm(ep);
+      
+      case '/api/v1/validate-consistency':
+        return createConsistencyForm(ep);
+      
+      case '/api/v1/analyze-quality':
+        return createQualityAnalysisForm(ep);
+      
+      case '/api/v1/batch-similarity':
+        return createBatchSimilarityForm(ep);
+      
+      case '/api/v1/batch-quality-check':
+        return createBatchQualityForm(ep);
+      
+      case '/api/v1/character-matching':
+        return createCharacterMatchingForm(ep);
+      
+      case '/api/v1/group-by-character':
+        return createGroupByCharacterForm(ep);
+      
+      case '/api/v1/validate-shot-consistency':
+        return createShotConsistencyForm(ep);
+      
+      case '/api/v1/reference-enforcement':
+        return createReferenceEnforcementForm(ep);
+      
+      case '/api/v1/analyze-video-shots':
+        return createVideoAnalysisForm(ep);
+      
+      case '/api/v1/semantic-search':
+        return createSemanticSearchForm(ep);
+      
+      case '/api/v1/anomaly-detection':
+        return createAnomalyDetectionForm(ep);
+      
+      case '/api/v1/feature-clustering':
+        return createFeatureClusteringForm(ep);
+      
+      case '/api/v1/shot-library':
+        return createShotLibraryForm(ep);
+      
+      default:
+        return null;
+    }
+  }
+
+  function createGenericForm(ep) {
+    const container = document.createElement('div');
+    
+    // Path and Query Parameters
+    const pathParams = ep.parameters.filter(p => p.in === 'path');
+    const queryParams = ep.parameters.filter(p => p.in === 'query');
+    
+    if (pathParams.length > 0 || queryParams.length > 0) {
+      const paramsContainer = document.createElement('div');
+      paramsContainer.className = 'param-grid';
+      
+      [...pathParams, ...queryParams].forEach(param => {
+        const group = createParameterGroup(param);
+        paramsContainer.appendChild(group);
+      });
+      
+      container.appendChild(paramsContainer);
+    }
+    
+    // Request Body
+    const bodySection = buildBodyEditor(ep);
+    if (bodySection) {
+      container.appendChild(bodySection);
+    }
+    
+    return container;
   }
 
   function createParameterGroup(param) {
@@ -773,6 +1000,664 @@
     if (param.schema && param.schema.format === 'email') return 'email';
     if (param.schema && param.schema.format === 'password') return 'password';
     return 'text';
+  }
+
+  // ===== CUSTOM FORM CREATORS =====
+
+  // Media Management Forms
+  function createMediaInfoForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">📁</div>
+      <div class="form-text">
+        <h3>Get Media Information</h3>
+        <p>Retrieve detailed information about an uploaded media asset including metadata, processing status, and access URLs.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetGroup = assetManager.createAssetSelector('asset_id', true);
+    form.appendChild(assetGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Feature Extraction Forms
+  function createExtractFeaturesForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🧠</div>
+      <div class="form-text">
+        <h3>Extract DINOv3 Features</h3>
+        <p>Extract high-dimensional feature embeddings from an image using the DINOv3 model. These features can be used for similarity analysis, clustering, and more.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetGroup = assetManager.createAssetSelector('asset_id', true);
+    form.appendChild(assetGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Similarity & Matching Forms
+  function createSimilarityForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🔍</div>
+      <div class="form-text">
+        <h3>Calculate Similarity</h3>
+        <p>Calculate cosine similarity between two media assets using their DINOv3 feature embeddings. Returns a similarity score from 0-100%.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const asset1Group = assetManager.createAssetSelector('asset_id_1', true);
+    asset1Group.querySelector('.param-label').textContent = 'First Asset ID';
+    form.appendChild(asset1Group);
+    
+    const asset2Group = assetManager.createAssetSelector('asset_id_2', true);
+    asset2Group.querySelector('.param-label').textContent = 'Second Asset ID';
+    form.appendChild(asset2Group);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createBestMatchForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎯</div>
+      <div class="form-text">
+        <h3>Find Best Match</h3>
+        <p>Find the best matching asset from a set of candidates against a reference asset. Perfect for finding the most similar image in a collection.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const refGroup = assetManager.createAssetSelector('reference_asset_id', true);
+    refGroup.querySelector('.param-label').textContent = 'Reference Asset ID';
+    form.appendChild(refGroup);
+    
+    const candidatesGroup = createAssetListInput('candidate_asset_ids', true, 'Candidate Asset IDs');
+    form.appendChild(candidatesGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createConsistencyForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">✅</div>
+      <div class="form-text">
+        <h3>Validate Consistency</h3>
+        <p>Check if two assets show the same character/person with detailed analysis. Useful for character consistency validation in production.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const asset1Group = assetManager.createAssetSelector('asset_id_1', true);
+    asset1Group.querySelector('.param-label').textContent = 'First Asset ID';
+    form.appendChild(asset1Group);
+    
+    const asset2Group = assetManager.createAssetSelector('asset_id_2', true);
+    asset2Group.querySelector('.param-label').textContent = 'Second Asset ID';
+    form.appendChild(asset2Group);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Quality Analysis Forms
+  function createQualityAnalysisForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">📊</div>
+      <div class="form-text">
+        <h3>Analyze Image Quality</h3>
+        <p>Comprehensive image quality analysis using DINOv3 features. Evaluates sharpness, lighting, composition, and overall visual quality.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetGroup = assetManager.createAssetSelector('asset_id', true);
+    form.appendChild(assetGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Batch Processing Forms
+  function createBatchSimilarityForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">📈</div>
+      <div class="form-text">
+        <h3>Batch Similarity Analysis</h3>
+        <p>Calculate similarity matrix for multiple assets. Returns a comprehensive similarity matrix showing how each asset relates to every other asset.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetsGroup = createAssetListInput('asset_ids', true, 'Asset IDs');
+    form.appendChild(assetsGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createBatchQualityForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🔍</div>
+      <div class="form-text">
+        <h3>Batch Quality Check</h3>
+        <p>Analyze quality for multiple assets in batch. Efficiently process multiple images for quality assessment.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetsGroup = createAssetListInput('asset_ids', true, 'Asset IDs');
+    form.appendChild(assetsGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Character Analysis Forms
+  function createCharacterMatchingForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">👥</div>
+      <div class="form-text">
+        <h3>Character Matching</h3>
+        <p>Advanced character consistency checking with detailed feedback. Compare a reference character against multiple test images.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const refGroup = assetManager.createAssetSelector('reference_asset_id', true);
+    refGroup.querySelector('.param-label').textContent = 'Reference Character Asset ID';
+    form.appendChild(refGroup);
+    
+    const testGroup = createAssetListInput('test_asset_ids', true, 'Test Asset IDs');
+    form.appendChild(testGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createGroupByCharacterForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">👥</div>
+      <div class="form-text">
+        <h3>Group by Character</h3>
+        <p>Group assets by detected characters/persons. Automatically organize images by the people/characters they contain.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetsGroup = createAssetListInput('asset_ids', true, 'Asset IDs');
+    form.appendChild(assetsGroup);
+    
+    const thresholdGroup = createNumberInput('similarity_threshold', false, 'Similarity Threshold', 75.0, 'Similarity threshold for grouping (0-100)');
+    form.appendChild(thresholdGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Production Services Forms
+  function createShotConsistencyForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎬</div>
+      <div class="form-text">
+        <h3>Validate Shot Consistency</h3>
+        <p>Validate character consistency across cinematic shots. Ensure character appearance remains consistent throughout a sequence.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const shotsGroup = createAssetListInput('shot_asset_ids', true, 'Shot Asset IDs');
+    form.appendChild(shotsGroup);
+    
+    const refGroup = assetManager.createAssetSelector('character_reference_asset_id', true);
+    refGroup.querySelector('.param-label').textContent = 'Character Reference Asset ID';
+    form.appendChild(refGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createReferenceEnforcementForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎯</div>
+      <div class="form-text">
+        <h3>Reference Enforcement</h3>
+        <p>Enforce character reference consistency in generated content. Validate that generated images match the reference character.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const masterGroup = assetManager.createAssetSelector('master_reference_asset_id', true);
+    masterGroup.querySelector('.param-label').textContent = 'Master Reference Asset ID';
+    form.appendChild(masterGroup);
+    
+    const generatedGroup = createAssetListInput('generated_asset_ids', true, 'Generated Asset IDs');
+    form.appendChild(generatedGroup);
+    
+    const thresholdGroup = createNumberInput('compliance_threshold', false, 'Compliance Threshold', 80.0, 'Compliance threshold for validation (0-100)');
+    form.appendChild(thresholdGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Video Analysis Forms
+  function createVideoAnalysisForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎥</div>
+      <div class="form-text">
+        <h3>Analyze Video Shots</h3>
+        <p>Analyze video for shot detection, camera movement, and cinematic patterns. Extract keyframes and analyze video structure.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const videoGroup = assetManager.createAssetSelector('video_asset_id', true);
+    videoGroup.querySelector('.param-label').textContent = 'Video Asset ID';
+    form.appendChild(videoGroup);
+    
+    const thresholdGroup = createNumberInput('shot_detection_threshold', false, 'Shot Detection Threshold', 0.3, 'Threshold for shot detection (0.0-1.0)');
+    form.appendChild(thresholdGroup);
+    
+    const keyframesGroup = createBooleanInput('extract_keyframes', false, 'Extract Keyframes', true, 'Whether to extract keyframes from shots');
+    form.appendChild(keyframesGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Advanced Analytics Forms
+  function createSemanticSearchForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🔍</div>
+      <div class="form-text">
+        <h3>Semantic Search</h3>
+        <p>Search for semantically similar assets in a dataset. Find images that are conceptually similar to your query image.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const queryGroup = assetManager.createAssetSelector('query_asset_id', true);
+    queryGroup.querySelector('.param-label').textContent = 'Query Asset ID';
+    form.appendChild(queryGroup);
+    
+    const datasetGroup = createAssetListInput('dataset_asset_ids', true, 'Dataset Asset IDs');
+    form.appendChild(datasetGroup);
+    
+    const topKGroup = createNumberInput('top_k', false, 'Top K Results', 10, 'Number of top results to return');
+    form.appendChild(topKGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createAnomalyDetectionForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">⚠️</div>
+      <div class="form-text">
+        <h3>Anomaly Detection</h3>
+        <p>Detect anomalous assets that don't fit expected patterns. Find outliers in your dataset based on visual similarity.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const refGroup = createAssetListInput('reference_asset_ids', true, 'Reference Asset IDs');
+    form.appendChild(refGroup);
+    
+    const testGroup = createAssetListInput('test_asset_ids', true, 'Test Asset IDs');
+    form.appendChild(testGroup);
+    
+    const thresholdGroup = createNumberInput('anomaly_threshold', false, 'Anomaly Threshold', 2.0, 'Threshold for anomaly detection');
+    form.appendChild(thresholdGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  function createFeatureClusteringForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">🎯</div>
+      <div class="form-text">
+        <h3>Feature Clustering</h3>
+        <p>Cluster assets based on DINOv3 features. Group similar images together using advanced clustering algorithms.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const assetsGroup = createAssetListInput('asset_ids', true, 'Asset IDs');
+    form.appendChild(assetsGroup);
+    
+    const clustersGroup = createNumberInput('n_clusters', false, 'Number of Clusters', null, 'Number of clusters (auto if empty)');
+    form.appendChild(clustersGroup);
+    
+    const methodGroup = createSelectInput('cluster_method', false, 'Clustering Method', 'kmeans', [
+      { value: 'kmeans', label: 'K-Means' },
+      { value: 'hierarchical', label: 'Hierarchical' },
+      { value: 'dbscan', label: 'DBSCAN' }
+    ]);
+    form.appendChild(methodGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Shot Library Form
+  function createShotLibraryForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">📚</div>
+      <div class="form-text">
+        <h3>Shot Library</h3>
+        <p>Browse and search the shot database with filters. Find cinematic shots based on movement type, emotional tone, and genre.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const movementGroup = createTextInput('movement_type', false, 'Movement Type', 'e.g., pan, zoom, static');
+    form.appendChild(movementGroup);
+    
+    const toneGroup = createTextInput('emotional_tone', false, 'Emotional Tone', 'e.g., dramatic, comedic, suspenseful');
+    form.appendChild(toneGroup);
+    
+    const genreGroup = createTextInput('genre', false, 'Genre', 'e.g., action, romance, horror');
+    form.appendChild(genreGroup);
+    
+    const tagsGroup = createTextInput('tags', false, 'Tags', 'e.g., close-up, wide-shot, night-scene');
+    form.appendChild(tagsGroup);
+    
+    const pageGroup = createNumberInput('page', false, 'Page', 1, 'Page number for pagination');
+    form.appendChild(pageGroup);
+    
+    const pageSizeGroup = createNumberInput('page_size', false, 'Page Size', 20, 'Number of results per page');
+    form.appendChild(pageSizeGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // ===== HELPER FUNCTIONS FOR FORM ELEMENTS =====
+
+  function createAssetListInput(name, required, label) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const container = document.createElement('div');
+    container.className = 'asset-list-container';
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'param-input asset-list-input';
+    textarea.name = name;
+    textarea.placeholder = 'Enter asset IDs, one per line or comma-separated';
+    textarea.rows = 4;
+    textarea.dataset.required = required;
+    
+    const help = document.createElement('div');
+    help.className = 'param-help';
+    help.textContent = 'Enter multiple asset IDs separated by commas or new lines';
+    
+    container.appendChild(textarea);
+    container.appendChild(help);
+    
+    group.append(labelEl, container);
+    return group;
+  }
+
+  function createNumberInput(name, required, label, defaultValue, placeholder) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'param-input';
+    input.name = name;
+    input.placeholder = placeholder || 'Enter number';
+    input.dataset.required = required;
+    if (defaultValue !== null && defaultValue !== undefined) {
+      input.value = defaultValue;
+    }
+    
+    group.append(labelEl, input);
+    return group;
+  }
+
+  function createTextInput(name, required, label, placeholder) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'param-input';
+    input.name = name;
+    input.placeholder = placeholder || 'Enter text';
+    input.dataset.required = required;
+    
+    group.append(labelEl, input);
+    return group;
+  }
+
+  function createBooleanInput(name, required, label, defaultValue, description) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const select = document.createElement('select');
+    select.className = 'param-input';
+    select.name = name;
+    select.dataset.required = required;
+    select.innerHTML = `
+      <option value="">Select...</option>
+      <option value="true" ${defaultValue === true ? 'selected' : ''}>True</option>
+      <option value="false" ${defaultValue === false ? 'selected' : ''}>False</option>
+    `;
+    
+    if (description) {
+      const help = document.createElement('div');
+      help.className = 'param-help';
+      help.textContent = description;
+      group.appendChild(help);
+    }
+    
+    group.append(labelEl, select);
+    return group;
+  }
+
+  function createSelectInput(name, required, label, defaultValue, options) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const select = document.createElement('select');
+    select.className = 'param-input';
+    select.name = name;
+    select.dataset.required = required;
+    select.innerHTML = '<option value="">Select...</option>';
+    
+    options.forEach(option => {
+      const optionEl = document.createElement('option');
+      optionEl.value = option.value;
+      optionEl.textContent = option.label;
+      if (option.value === defaultValue) {
+        optionEl.selected = true;
+      }
+      select.appendChild(optionEl);
+    });
+    
+    group.append(labelEl, select);
+    return group;
   }
 
   function getPlaceholder(param) {
@@ -1048,6 +1933,11 @@
       }
     }
     
+    // Handle custom forms that need JSON body
+    if (hasCustomForm(ep.path)) {
+      return collectCustomFormData(ep, section);
+    }
+    
     const rb = ep.requestBody;
     if (!rb) return { body: undefined, headers: {} };
     
@@ -1090,6 +1980,77 @@
     }
     
     return { body: undefined, headers: {} };
+  }
+
+  function hasCustomForm(path) {
+    const customFormPaths = [
+      '/api/v1/calculate-similarity',
+      '/api/v1/find-best-match',
+      '/api/v1/validate-consistency',
+      '/api/v1/analyze-quality',
+      '/api/v1/batch-similarity',
+      '/api/v1/batch-quality-check',
+      '/api/v1/character-matching',
+      '/api/v1/group-by-character',
+      '/api/v1/validate-shot-consistency',
+      '/api/v1/reference-enforcement',
+      '/api/v1/analyze-video-shots',
+      '/api/v1/semantic-search',
+      '/api/v1/anomaly-detection',
+      '/api/v1/feature-clustering'
+    ];
+    return customFormPaths.includes(path);
+  }
+
+  function collectCustomFormData(ep, section) {
+    const data = {};
+    
+    // Collect all form inputs
+    const inputs = section.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      if (!input.name) return;
+      
+      let value = input.value;
+      
+      // Handle asset list inputs (textarea with multiple asset IDs)
+      if (input.classList.contains('asset-list-input')) {
+        if (value.trim()) {
+          // Split by comma or newline and clean up
+          const assetIds = value.split(/[,\n]/)
+            .map(id => id.trim())
+            .filter(id => id.length > 0);
+          data[input.name] = assetIds;
+        }
+      }
+      // Handle number inputs
+      else if (input.type === 'number') {
+        if (value !== '') {
+          data[input.name] = parseFloat(value);
+        }
+      }
+      // Handle boolean inputs
+      else if (input.tagName === 'SELECT' && (value === 'true' || value === 'false')) {
+        data[input.name] = value === 'true';
+      }
+      // Handle regular text inputs
+      else if (value.trim() !== '') {
+        data[input.name] = value.trim();
+      }
+    });
+    
+    // Validate required fields
+    const requiredFields = section.querySelectorAll('[data-required="true"]');
+    for (const field of requiredFields) {
+      if (!field.value || field.value.trim() === '') {
+        toast.show(`Please fill in the required field: ${field.name}`, 'error', 'Required Field Missing');
+        return { body: undefined, headers: {} };
+      }
+    }
+    
+    return { 
+      body: JSON.stringify(data), 
+      headers: { 'Content-Type': 'application/json' } 
+    };
   }
 
   function copyCurl(ep, section) {
@@ -1258,6 +2219,14 @@
       state.requestHistory = [];
       saveHistory();
       toast.show('Request history cleared', 'success', 'History Cleared');
+    });
+    
+    // Add asset button
+    $('#addAssetBtn').addEventListener('click', async () => {
+      const assetId = prompt('Enter Asset ID to add:');
+      if (assetId && assetId.trim()) {
+        await assetManager.addAssetById(assetId.trim());
+      }
     });
     
     // Clear assets button

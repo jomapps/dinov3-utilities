@@ -382,6 +382,11 @@ body {
   margin-bottom: var(--space-3);
 }
 
+.assets-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
 .assets-header h4 {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -1044,6 +1049,68 @@ body {
   }
 }
 
+/* Custom Form Styles */
+.custom-form-container {
+  margin-bottom: var(--space-6);
+}
+
+.form-description {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-6);
+}
+
+.form-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.form-text h3 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.form-text p {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+/* Asset List Input Styles */
+.asset-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.asset-list-input {
+  min-height: 100px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.asset-list-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* File Upload Styles */
 .file-upload-container {
   margin-bottom: var(--space-6);
@@ -1124,25 +1191,78 @@ body {
   color: var(--text-muted);
 }
 
-/* Asset Management Styles */
-.asset-input-container {
+/* Asset Autocomplete Styles */
+.asset-autocomplete-container {
+  position: relative;
   display: flex;
   gap: var(--space-2);
-  align-items: center;
+  align-items: flex-start;
 }
 
-.asset-selector,
-.asset-id-input {
+.asset-autocomplete-input {
   flex: 1;
+  min-width: 0;
 }
 
-.asset-toggle {
-  padding: var(--space-2);
-  min-width: auto;
+.asset-copy-btn {
+  flex-shrink: 0;
+  width: 40px;
   height: 40px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.2rem;
+}
+
+.asset-hints-container {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 40px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+
+.asset-hint {
+  padding: var(--space-3);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-secondary);
+  transition: background-color 0.2s ease;
+}
+
+.asset-hint:last-child {
+  border-bottom: none;
+}
+
+.asset-hint:hover,
+.asset-hint.highlighted {
+  background: var(--bg-secondary);
+}
+
+.hint-filename {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.hint-id {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.asset-hint mark {
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  padding: 0;
+  border-radius: 2px;
 }
 
 .asset-info-display {
