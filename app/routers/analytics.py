@@ -35,8 +35,7 @@ async def semantic_search(
     
     try:
         # Get query asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.query_asset_id))
-        query_asset = result.scalar_one_or_none()
+        query_asset = await MediaAsset.get(request.query_asset_id)
         
         if not query_asset or not query_asset.features_extracted:
             raise HTTPException(status_code=404, detail="Query asset not found or features not extracted")

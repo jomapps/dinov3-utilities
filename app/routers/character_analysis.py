@@ -28,8 +28,7 @@ async def character_matching(
     
     try:
         # Get reference asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.reference_asset_id))
-        reference_asset = result.scalar_one_or_none()
+        reference_asset = await MediaAsset.get(request.reference_asset_id)
         
         if not reference_asset or not reference_asset.features_extracted:
             raise HTTPException(status_code=404, detail="Reference asset not found or features not extracted")

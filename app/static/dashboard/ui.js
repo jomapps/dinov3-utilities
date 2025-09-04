@@ -795,6 +795,12 @@
       case '/api/v1/analyze-video-shots':
         return createVideoAnalysisForm(ep);
       
+      case '/api/v1/store-shot-data':
+        return createStoreShotDataForm(ep);
+      
+      case '/api/v1/suggest-shots':
+        return createSuggestShotsForm(ep);
+      
       case '/api/v1/semantic-search':
         return createSemanticSearchForm(ep);
       
@@ -1376,6 +1382,81 @@
     return container;
   }
 
+  // Store Shot Data Form
+  function createStoreShotDataForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">💾</div>
+      <div class="form-text">
+        <h3>Store Shot Data</h3>
+        <p>Store analyzed shot data with contextual information and tags. Build a searchable database of cinematic shots for AI-powered recommendations.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const videoGroup = assetManager.createAssetSelector('video_asset_id', true);
+    videoGroup.querySelector('.param-label').textContent = 'Video Asset ID';
+    form.appendChild(videoGroup);
+    
+    const shotsGroup = createTextAreaInput('shots', true, 'Shots Data', 'JSON array of shot analysis data from analyze-video-shots endpoint');
+    shotsGroup.querySelector('.param-label').textContent = 'Shots Data (JSON)';
+    form.appendChild(shotsGroup);
+    
+    const contextGroup = createTextInput('scene_context', false, 'Scene Context', 'e.g., Action sequence with car chase');
+    form.appendChild(contextGroup);
+    
+    const tagsGroup = createTextInput('manual_tags', false, 'Manual Tags', 'e.g., action,chase,urban,fast_paced (comma-separated)');
+    form.appendChild(tagsGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
+  // Suggest Shots Form
+  function createSuggestShotsForm(ep) {
+    const container = document.createElement('div');
+    container.className = 'custom-form-container';
+    
+    const description = document.createElement('div');
+    description.className = 'form-description';
+    description.innerHTML = `
+      <div class="form-icon">💡</div>
+      <div class="form-text">
+        <h3>Suggest Shots</h3>
+        <p>Get cinematography recommendations based on scene requirements. AI-powered shot suggestions for directors and editors.</p>
+      </div>
+    `;
+    container.appendChild(description);
+    
+    const form = document.createElement('div');
+    form.className = 'form-grid';
+    
+    const sceneGroup = createTextInput('scene_description', true, 'Scene Description', 'e.g., Dramatic confrontation between two characters');
+    form.appendChild(sceneGroup);
+    
+    const toneGroup = createTextInput('emotional_tone', false, 'Emotional Tone', 'e.g., tense, dramatic, comedic, suspenseful');
+    form.appendChild(toneGroup);
+    
+    const genreGroup = createTextInput('genre_context', false, 'Genre Context', 'e.g., thriller, romance, action, horror');
+    form.appendChild(genreGroup);
+    
+    const tagsGroup = createTextInput('desired_tags', false, 'Desired Tags', 'e.g., close_up,dramatic,night_scene (comma-separated)');
+    form.appendChild(tagsGroup);
+    
+    const limitGroup = createNumberInput('limit', false, 'Limit', 10, 'Maximum number of shot recommendations');
+    form.appendChild(limitGroup);
+    
+    container.appendChild(form);
+    return container;
+  }
+
   // Advanced Analytics Forms
   function createSemanticSearchForm(ep) {
     const container = document.createElement('div');
@@ -1657,6 +1738,29 @@
     });
     
     group.append(labelEl, select);
+    return group;
+  }
+
+  function createTextAreaInput(name, required, label, placeholder) {
+    const group = document.createElement('div');
+    group.className = 'param-group';
+    
+    const labelEl = document.createElement('label');
+    labelEl.className = 'param-label';
+    labelEl.innerHTML = `
+      ${label}
+      ${required ? '<span class="param-required">*</span>' : ''}
+    `;
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'param-input';
+    textarea.name = name;
+    textarea.dataset.required = required;
+    textarea.placeholder = placeholder || '';
+    textarea.rows = 6;
+    textarea.style.resize = 'vertical';
+    
+    group.append(labelEl, textarea);
     return group;
   }
 
@@ -1995,6 +2099,8 @@
       '/api/v1/validate-shot-consistency',
       '/api/v1/reference-enforcement',
       '/api/v1/analyze-video-shots',
+      '/api/v1/store-shot-data',
+      '/api/v1/suggest-shots',
       '/api/v1/semantic-search',
       '/api/v1/anomaly-detection',
       '/api/v1/feature-clustering'

@@ -29,8 +29,7 @@ async def validate_shot_consistency(
     
     try:
         # Get character reference asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.character_reference_asset_id))
-        reference_asset = result.scalar_one_or_none()
+        reference_asset = await MediaAsset.get(request.character_reference_asset_id)
         
         if not reference_asset or not reference_asset.features_extracted:
             raise HTTPException(status_code=404, detail="Character reference asset not found or features not extracted")
@@ -150,8 +149,7 @@ async def reference_enforcement(
     
     try:
         # Get master reference asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.master_reference_asset_id))
-        master_asset = result.scalar_one_or_none()
+        master_asset = await MediaAsset.get(request.master_reference_asset_id)
         
         if not master_asset or not master_asset.features_extracted:
             raise HTTPException(status_code=404, detail="Master reference asset not found or features not extracted")

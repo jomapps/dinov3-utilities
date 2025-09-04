@@ -32,11 +32,8 @@ async def calculate_similarity(
     
     try:
         # Get both assets
-        result1 = await db.execute(select(MediaAsset).where(MediaAsset.id == request.asset_id_1))
-        asset1 = result1.scalar_one_or_none()
-        
-        result2 = await db.execute(select(MediaAsset).where(MediaAsset.id == request.asset_id_2))
-        asset2 = result2.scalar_one_or_none()
+        asset1 = await MediaAsset.get(request.asset_id_1)
+        asset2 = await MediaAsset.get(request.asset_id_2)
         
         if not asset1 or not asset2:
             raise HTTPException(status_code=404, detail="One or both assets not found")
@@ -95,8 +92,7 @@ async def find_best_match(
     
     try:
         # Get reference asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.reference_asset_id))
-        reference_asset = result.scalar_one_or_none()
+        reference_asset = await MediaAsset.get(request.reference_asset_id)
         
         if not reference_asset or not reference_asset.features_extracted:
             raise HTTPException(status_code=404, detail="Reference asset not found or features not extracted")
@@ -149,11 +145,8 @@ async def validate_consistency(
     
     try:
         # Get both assets
-        result1 = await db.execute(select(MediaAsset).where(MediaAsset.id == request.asset_id_1))
-        asset1 = result1.scalar_one_or_none()
-        
-        result2 = await db.execute(select(MediaAsset).where(MediaAsset.id == request.asset_id_2))
-        asset2 = result2.scalar_one_or_none()
+        asset1 = await MediaAsset.get(request.asset_id_1)
+        asset2 = await MediaAsset.get(request.asset_id_2)
         
         if not asset1 or not asset2:
             raise HTTPException(status_code=404, detail="One or both assets not found")

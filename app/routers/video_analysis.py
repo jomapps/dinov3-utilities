@@ -51,25 +51,46 @@ async def analyze_video_shots(
     
     try:
         # Get video asset
-        result = await db.execute(select(MediaAsset).where(MediaAsset.id == request.video_asset_id))
-        video_asset = result.scalar_one_or_none()
+        video_asset = await MediaAsset.get(request.video_asset_id)
         
         if not video_asset:
             raise HTTPException(status_code=404, detail="Video asset not found")
         
+        # Validate that the asset is a video file
+        if not video_asset.content_type or not video_asset.content_type.startswith('video/'):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Asset is not a video file. Found content type: {video_asset.content_type}. Please upload a video file for shot analysis."
+            )
+        
         # Download video from storage
         await storage_service.initialize()
         video_data = await storage_service.download_file(video_asset.r2_object_key)
+        
+        if not video_data:
+            raise HTTPException(status_code=404, detail="Video file not found in storage")
         
         # Save temporarily for processing
         temp_video_path = f"/tmp/{video_asset.id}.mp4"
         with open(temp_video_path, "wb") as f:
             f.write(video_data)
         
-        # Load video with moviepy
-        video = mp.VideoFileClip(temp_video_path)
+        # Load video with moviepy and validate it's a proper video
+        try:
+            video = mp.VideoFileClip(temp_video_path)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid video file format. Please ensure the uploaded file is a valid video. Error: {str(e)}"
+            )
         fps = video.fps
         duration = video.duration
+        
+        # Validate video properties
+        if not fps or fps <= 0:
+            raise HTTPException(status_code=400, detail="Invalid video: FPS is not valid")
+        if not duration or duration <= 0:
+            raise HTTPException(status_code=400, detail="Invalid video: Duration is not valid")
         
         # Detect shots using frame difference
         shots = []
